@@ -109,12 +109,17 @@ var createCmd = &cobra.Command{
 	            fmt.Fprintf(os.Stderr, "error: %v\n", err)
 	            os.Exit(1)
 	        }
+	    case "fabric":
+	        if err := server.DownloadFabric(serverVersion); err != nil {
+	            fmt.Fprintf(os.Stderr, "error: %v\n", err)
+	            os.Exit(1)
+	        }
 	    default:
 	        fmt.Fprintf(os.Stderr, "error: unknown server type %q\n", serverType)
 	        os.Exit(1)
 	    }
 
-	    if err := server.DownloadJava(serverVersion); err != nil {
+	    if err := server.DownloadJava(serverVersion, serverType); err != nil {
 	        fmt.Fprintf(os.Stderr, "error setting up Java: %v\n", err)
 	        os.Exit(1)
 	    }
@@ -145,7 +150,7 @@ var createCmd = &cobra.Command{
 }
 
 func init() {
-	createCmd.Flags().StringVarP(&serverType, "type", "t", "paper", "Server type (paper, vanilla)")
+	createCmd.Flags().StringVarP(&serverType, "type", "t", "paper", "Server type (paper, vanilla, fabric)")
 	createCmd.Flags().StringVarP(&serverVersion, "version", "v", "", "Minecraft version (e.g. 1.21.1)")
 	createCmd.MarkFlagRequired("version")
 	rootCmd.AddCommand(createCmd)
