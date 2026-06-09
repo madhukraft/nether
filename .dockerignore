@@ -2,6 +2,7 @@
 .gitignore
 .github
 Dockerfile
+.goreleaser.yaml
 .dockerignore
 nether
 *.md
