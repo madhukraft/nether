@@ -19,6 +19,7 @@ var minRAMFlag string
 var portFlag int
 var dirFlag string
 var javaFlag int
+var targetOSFlag string
 
 func promptEula(in *bufio.Reader, out io.Writer) (bool, error) {
 	fmt.Fprint(out, "Do you accept the Minecraft EULA (https://aka.ms/MinecraftEULA)? [y/N]: ")
@@ -151,6 +152,31 @@ func promptServerType(in *bufio.Reader, out io.Writer) (string, error) {
 	}
 }
 
+func promptTargetOS(in *bufio.Reader, out io.Writer) (string, error) {
+	types := []string{"linux", "macos", "windows"}
+	for {
+		fmt.Fprintln(out, "Detected Docker: which OS will run the Minecraft server?")
+		for i, t := range types {
+			fmt.Fprintf(out, "  %d) %s\n", i+1, t)
+		}
+		fmt.Fprint(out, "Enter number [1]: ")
+		input, err := in.ReadString('\n')
+		if err != nil {
+			return "", err
+		}
+		input = strings.TrimSpace(input)
+		if input == "" {
+			return "linux", nil
+		}
+		n, err := strconv.Atoi(input)
+		if err != nil || n < 1 || n > len(types) {
+			fmt.Fprintf(out, "error: enter a number between 1 and %d.\n", len(types))
+			continue
+		}
+		return types[n-1], nil
+	}
+}
+
 var createCmd = &cobra.Command{
 	Use:   "create",
 	Short: "Create a new Minecraft server in the current directory",
@@ -260,6 +286,11 @@ var createCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
+		if server.IsRunningInDocker() && !cmd.Flags().Changed("os") {
+			targetOSFlag, _ = promptTargetOS(reader, os.Stdout)
+		}
+		server.SetTarget(targetOSFlag, "")
+
 		javaVer := server.GetJavaVersionForMinecraft(serverVersion)
 		if javaFlag != 0 {
 			if javaFlag < 8 || javaFlag > 30 {
@@ -366,5 +397,6 @@ func init() {
 	createCmd.Flags().IntVar(&portFlag, "port", 0, "Server port (default 25565)")
 	createCmd.Flags().StringVar(&dirFlag, "dir", "", "Directory to create the server in (use '.' for current directory)")
 	createCmd.Flags().IntVar(&javaFlag, "java", 0, "Java major version (auto-detected if not set)")
+	createCmd.Flags().StringVar(&targetOSFlag, "os", "", "Target OS for Java and scripts (linux, macos, windows)")
 	rootCmd.AddCommand(createCmd)
 }

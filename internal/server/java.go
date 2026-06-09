@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strconv"
 	"strings"
 )
@@ -81,16 +80,14 @@ func GetJavaVersionForMinecraft(mcVersion string) int {
 }
 
 func getAdoptiumOS() string {
-	osVal := runtime.GOOS
-	if osVal == "darwin" {
+	if targetOS == "darwin" {
 		return "mac"
 	}
-	return osVal
+	return targetOS
 }
 
 func getAdoptiumArch() string {
-	arch := runtime.GOARCH
-	switch arch {
+	switch targetArch {
 	case "amd64":
 		return "x64"
 	case "arm64":
@@ -98,7 +95,7 @@ func getAdoptiumArch() string {
 	case "386":
 		return "x32"
 	default:
-		return arch
+		return targetArch
 	}
 }
 
@@ -216,7 +213,7 @@ func DownloadJava(mcVersion string, customVer int) error {
 	}
 
 	// Make sure the java binary is executable on Unix systems
-	if runtime.GOOS != "windows" {
+	if targetOS != "windows" {
 		javaBin := filepath.Join("java", "bin", "java")
 		_ = os.Chmod(javaBin, 0755)
 	}

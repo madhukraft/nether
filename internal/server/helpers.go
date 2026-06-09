@@ -7,15 +7,32 @@ import (
 	"strings"
 )
 
+var targetOS = runtime.GOOS
+var targetArch = runtime.GOARCH
+
+func SetTarget(os, arch string) {
+	if os != "" {
+		targetOS = os
+	}
+	if arch != "" {
+		targetArch = arch
+	}
+}
+
+func IsRunningInDocker() bool {
+	_, err := os.Stat("/.dockerenv")
+	return err == nil
+}
+
 func bundledJavaPath() string {
-	if runtime.GOOS == "windows" {
+	if targetOS == "windows" {
 		return filepath.Join("java", "bin", "java.exe")
 	}
 	return filepath.Join("java", "bin", "java")
 }
 
 func bundledJavaRef() string {
-	if runtime.GOOS == "windows" {
+	if targetOS == "windows" {
 		return filepath.Join("java", "bin", "java.exe")
 	}
 	return "./" + filepath.Join("java", "bin", "java")
