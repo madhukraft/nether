@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -128,12 +127,12 @@ func DownloadForge(mcVersion string) (string, error) {
 
 func InstallForge(installerFile string) error {
 	fmt.Println("Running Forge installer...")
-	javaBin := "java"
-	if _, err := os.Stat(filepath.Join("java", "bin", "java")); err == nil {
-		javaBin = filepath.Join("java", "bin", "java")
+	javaPath := "java"
+	if bundledJavaExists() {
+		javaPath = bundledJavaPath()
 	}
 
-	cmd := exec.Command(javaBin, "-jar", installerFile, "--installServer")
+	cmd := exec.Command(javaPath, "-jar", installerFile, "--installServer")
 	cmd.Stdout = nil
 	cmd.Stderr = nil
 	if err := cmd.Run(); err != nil {
@@ -144,24 +143,8 @@ func InstallForge(installerFile string) error {
 		return fmt.Errorf("failed to remove installer: %w", err)
 	}
 
-	// Modify run.sh to use bundled Java
-	if _, err := os.Stat("run.sh"); err == nil {
-		data, err := os.ReadFile("run.sh")
-		if err != nil {
-			return fmt.Errorf("failed to read run.sh: %w", err)
-		}
-		content := string(data)
-		javaPath := "java"
-		if _, err := os.Stat(filepath.Join("java", "bin", "java")); err == nil {
-			javaPath = "./java/bin/java"
-		}
-		if strings.HasPrefix(content, "java ") {
-			content = strings.Replace(content, "java ", javaPath+" ", 1)
-		}
-		content = strings.ReplaceAll(content, "\njava ", "\n"+javaPath+" ")
-		if err := os.WriteFile("run.sh", []byte(content), 0755); err != nil {
-			return fmt.Errorf("failed to write run.sh: %w", err)
-		}
+	if err := patchScriptJava("run.sh", 0755); err != nil {
+		return fmt.Errorf("failed to fix run script: %w", err)
 	}
 
 	return nil

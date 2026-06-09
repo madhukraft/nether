@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -152,12 +151,12 @@ func DownloadNeoForge(mcVersion string) (string, error) {
 
 func InstallNeoForge(installerFile string) error {
 	fmt.Println("Running NeoForge installer...")
-	javaBin := "java"
-	if _, err := os.Stat(filepath.Join("java", "bin", "java")); err == nil {
-		javaBin = filepath.Join("java", "bin", "java")
+	javaPath := "java"
+	if bundledJavaExists() {
+		javaPath = bundledJavaPath()
 	}
 
-	cmd := exec.Command(javaBin, "-jar", installerFile, "--installServer")
+	cmd := exec.Command(javaPath, "-jar", installerFile, "--installServer")
 	cmd.Stdout = nil
 	cmd.Stderr = nil
 	if err := cmd.Run(); err != nil {
@@ -168,19 +167,8 @@ func InstallNeoForge(installerFile string) error {
 		return fmt.Errorf("failed to remove installer: %w", err)
 	}
 
-	// Modify run.sh to use bundled Java
-	if _, err := os.Stat("run.sh"); err == nil {
-		data, err := os.ReadFile("run.sh")
-		if err != nil {
-			return fmt.Errorf("failed to read run.sh: %w", err)
-		}
-		content := string(data)
-		if _, err := os.Stat(filepath.Join("java", "bin", "java")); err == nil {
-			content = strings.Replace(content, "exec java", "exec ./java/bin/java", 1)
-		}
-		if err := os.WriteFile("run.sh", []byte(content), 0755); err != nil {
-			return fmt.Errorf("failed to write run.sh: %w", err)
-		}
+	if err := patchScriptJava("run.sh", 0755); err != nil {
+		return fmt.Errorf("failed to fix run script: %w", err)
 	}
 
 	return nil

@@ -26,15 +26,18 @@ func WriteStartScript(minRAM, maxRAM string) error {
 	var fileName string
 	var header string
 	var javaPath string
+	var lineEnd string
 
 	if runtime.GOOS == "windows" {
 		fileName = "start.bat"
 		header = "@echo off"
 		javaPath = `java\bin\java.exe`
+		lineEnd = "\r\n"
 	} else {
 		fileName = "start.sh"
 		header = "#!/usr/bin/env sh"
 		javaPath = "./java/bin/java"
+		lineEnd = "\n"
 	}
 
 	flags := []string{
@@ -60,12 +63,13 @@ func WriteStartScript(minRAM, maxRAM string) error {
 		"-Daikars.new.flags=true",
 	}
 
-	content := fmt.Sprintf("%s\n\n%s -Xms%s -Xmx%s %s -jar server.jar --nogui\n",
-		header,
+	content := fmt.Sprintf("%s%s%s%s -Xms%s -Xmx%s %s -jar server.jar --nogui%s",
+		header, lineEnd, lineEnd,
 		javaPath,
 		minRAM,
 		maxRAM,
 		strings.Join(flags, " "),
+		lineEnd,
 	)
 
 	return os.WriteFile(fileName, []byte(content), 0755)
