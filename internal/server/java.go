@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"archive/zip"
 	"compress/gzip"
+	"encoding/binary"
 	"fmt"
 	"io"
 	"net/http"
@@ -16,8 +17,8 @@ import (
 
 func getJavaVersionForMinecraft(mcVersion string) int {
 	parts := strings.Split(mcVersion, ".")
-	if len(parts) < 2 {
-		return 21 // Default fallback
+	if len(parts) == 0 {
+		return 21
 	}
 
 	if parts[0] != "1" {
@@ -35,6 +36,10 @@ func getJavaVersionForMinecraft(mcVersion string) int {
 			}
 		}
 		return 21
+	}
+
+	if len(parts) < 2 {
+		return 21 // Default fallback
 	}
 
 	major, err := strconv.Atoi(parts[1])
@@ -86,8 +91,52 @@ func getAdoptiumArch() string {
 	}
 }
 
+func GetJavaVersionFromJar(jarPath string) (int, error) {
+	r, err := zip.OpenReader(jarPath)
+	if err != nil {
+		return 0, fmt.Errorf("failed to open jar: %w", err)
+	}
+	defer r.Close()
+
+	for _, f := range r.File {
+		if strings.HasSuffix(f.Name, ".class") {
+			rc, err := f.Open()
+			if err != nil {
+				return 0, err
+			}
+			defer rc.Close()
+
+			buf := make([]byte, 8)
+			_, err = io.ReadFull(rc, buf)
+			if err != nil {
+				return 0, err
+			}
+
+			// Verify CAFEBABE magic number
+			if binary.BigEndian.Uint32(buf[0:4]) != 0xCAFEBABE {
+				continue
+			}
+
+			// Read major version (bytes 6 and 7)
+			majorVersion := binary.BigEndian.Uint16(buf[6:8])
+			javaVersion := int(majorVersion) - 44
+			return javaVersion, nil
+		}
+	}
+	return 0, fmt.Errorf("no class files found in jar")
+}
+
 func DownloadJava(mcVersion string) error {
-	javaVer := getJavaVersionForMinecraft(mcVersion)
+	var javaVer int
+	jarVer, err := GetJavaVersionFromJar("server.jar")
+	if err == nil {
+		javaVer = jarVer
+		fmt.Printf("Detected target Java version %d from server.jar\n", javaVer)
+	} else {
+		javaVer = getJavaVersionForMinecraft(mcVersion)
+		fmt.Printf("Could not detect Java version from server.jar: %v. Falling back to MC mapping: Java %d\n", err, javaVer)
+	}
+
 	osVal := getAdoptiumOS()
 	archVal := getAdoptiumArch()
 

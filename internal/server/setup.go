@@ -1,9 +1,11 @@
 package server
 
 import (
-    "fmt"
-    "os"
-    "time"
+	"fmt"
+	"os"
+	"runtime"
+	"strings"
+	"time"
 )
 
 func WriteEula() error {
@@ -18,4 +20,53 @@ version = "%s"
 created = "%s"
 `, serverType, version, time.Now().Format(time.RFC3339))
     return os.WriteFile("nether.toml", []byte(content), 0644)
+}
+
+func WriteStartScript(ram string) error {
+	var fileName string
+	var header string
+	var javaPath string
+
+	if runtime.GOOS == "windows" {
+		fileName = "start.bat"
+		header = "@echo off"
+		javaPath = `java\bin\java.exe`
+	} else {
+		fileName = "start.sh"
+		header = "#!/usr/bin/env sh"
+		javaPath = "./java/bin/java"
+	}
+
+	flags := []string{
+		"-XX:+AlwaysPreTouch",
+		"-XX:+DisableExplicitGC",
+		"-XX:+ParallelRefProcEnabled",
+		"-XX:+PerfDisableSharedMem",
+		"-XX:+UnlockExperimentalVMOptions",
+		"-XX:+UseG1GC",
+		"-XX:G1HeapRegionSize=8M",
+		"-XX:G1HeapWastePercent=5",
+		"-XX:G1MaxNewSizePercent=40",
+		"-XX:G1MixedGCCountTarget=4",
+		"-XX:G1MixedGCLiveThresholdPercent=90",
+		"-XX:G1NewSizePercent=30",
+		"-XX:G1RSetUpdatingPauseTimePercent=5",
+		"-XX:G1ReservePercent=20",
+		"-XX:InitiatingHeapOccupancyPercent=15",
+		"-XX:MaxGCPauseMillis=200",
+		"-XX:MaxTenuringThreshold=1",
+		"-XX:SurvivorRatio=32",
+		"-Dusing.aikars.flags=https://mcflags.emc.gs",
+		"-Daikars.new.flags=true",
+	}
+
+	content := fmt.Sprintf("%s\n\n%s -Xms%s -Xmx%s %s -jar server.jar --nogui\n",
+		header,
+		javaPath,
+		ram,
+		ram,
+		strings.Join(flags, " "),
+	)
+
+	return os.WriteFile(fileName, []byte(content), 0755)
 }

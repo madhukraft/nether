@@ -39,3 +39,41 @@ func TestPromptEula(t *testing.T) {
 		})
 	}
 }
+
+func TestParseRAM(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+		wantErr  bool
+	}{
+		{"1G", "1024M", false},
+		{"2g", "2048M", false},
+		{"2048M", "2048M", false},
+		{"1024m", "1024M", false},
+		{" 4g ", "4096M", false},
+		{"4gb", "4096M", false},
+		{"4GiB", "4096M", false},
+		{"1024mb", "1024M", false},
+		{"1024mib", "1024M", false},
+		{"", "", true},
+		{"g", "", true},
+		{"m", "", true},
+		{"-2g", "", true},
+		{"0g", "", true},
+		{"2", "", true},
+		{"invalid", "", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			got, err := parseRAM(tt.input)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("parseRAM(%q) error = %v; wantErr %v", tt.input, err, tt.wantErr)
+			}
+			if !tt.wantErr && got != tt.expected {
+				t.Errorf("parseRAM(%q) = %q; want %q", tt.input, got, tt.expected)
+			}
+		})
+	}
+}
+

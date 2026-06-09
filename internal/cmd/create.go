@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/madhukraft/nether/internal/server"
@@ -23,6 +24,59 @@ func promptEula(in io.Reader, out io.Writer) (bool, error) {
 	}
 	response = strings.TrimSpace(response)
 	return response == "y" || response == "Y", nil
+}
+
+func parseRAM(input string) (string, error) {
+	input = strings.TrimSpace(input)
+	if input == "" {
+		return "", fmt.Errorf("RAM amount cannot be empty")
+	}
+
+	normalized := strings.ToLower(input)
+	normalized = strings.TrimSuffix(normalized, "b")
+	normalized = strings.TrimSuffix(normalized, "i")
+	normalized = strings.TrimSpace(normalized)
+
+	if len(normalized) == 0 {
+		return "", fmt.Errorf("invalid RAM format")
+	}
+
+	suffix := normalized[len(normalized)-1:]
+	numStr := normalized[:len(normalized)-1]
+
+	if suffix == "g" {
+		val, err := strconv.Atoi(strings.TrimSpace(numStr))
+		if err != nil || val <= 0 {
+			return "", fmt.Errorf("invalid numeric value: %s", numStr)
+		}
+		return fmt.Sprintf("%dM", val*1024), nil
+	}
+
+	if suffix == "m" {
+		val, err := strconv.Atoi(strings.TrimSpace(numStr))
+		if err != nil || val <= 0 {
+			return "", fmt.Errorf("invalid numeric value: %s", numStr)
+		}
+		return fmt.Sprintf("%dM", val), nil
+	}
+
+	return "", fmt.Errorf("missing unit (must specify G or M, e.g. 2G or 2048M)")
+}
+
+func promptRAM(in io.Reader, out io.Writer) (string, error) {
+	reader := bufio.NewReader(in)
+	for {
+		fmt.Fprint(out, "Enter the amount of RAM to allocate (e.g. 2G or 2048M): ")
+		input, err := reader.ReadString('\n')
+		if err != nil {
+			return "", err
+		}
+		ram, err := parseRAM(input)
+		if err == nil {
+			return ram, nil
+		}
+		fmt.Fprintf(out, "error: %v. Please try again.\n", err)
+	}
 }
 
 var createCmd = &cobra.Command{
@@ -60,6 +114,17 @@ var createCmd = &cobra.Command{
 
 	    if err := server.DownloadJava(serverVersion); err != nil {
 	        fmt.Fprintf(os.Stderr, "error setting up Java: %v\n", err)
+	        os.Exit(1)
+	    }
+
+	    ram, err := promptRAM(os.Stdin, os.Stdout)
+	    if err != nil {
+	        fmt.Fprintf(os.Stderr, "error reading RAM allocation: %v\n", err)
+	        os.Exit(1)
+	    }
+
+	    if err := server.WriteStartScript(ram); err != nil {
+	        fmt.Fprintf(os.Stderr, "error writing start script: %v\n", err)
 	        os.Exit(1)
 	    }
 
