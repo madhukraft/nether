@@ -58,6 +58,11 @@ var createCmd = &cobra.Command{
 	        os.Exit(1)
 	    }
 
+	    if err := server.DownloadJava(serverVersion); err != nil {
+	        fmt.Fprintf(os.Stderr, "error setting up Java: %v\n", err)
+	        os.Exit(1)
+	    }
+
 	    if err := server.WriteEula(); err != nil {
 	        fmt.Fprintf(os.Stderr, "error writing eula.txt: %v\n", err)
 	        os.Exit(1)
