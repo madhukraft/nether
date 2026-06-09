@@ -136,6 +136,7 @@ var createCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
+	    var neoforgeInstaller string
 	    switch serverType {
 	    case "paper":
 	        if err := server.DownloadPaper(serverVersion); err != nil {
@@ -152,6 +153,14 @@ var createCmd = &cobra.Command{
 	            fmt.Fprintf(os.Stderr, "error: %v\n", err)
 	            os.Exit(1)
 	        }
+	    case "neoforge":
+	        fmt.Println("Fetching NeoForge version...")
+	        installer, err := server.DownloadNeoForge(serverVersion)
+	        if err != nil {
+	            fmt.Fprintf(os.Stderr, "error: %v\n", err)
+	            os.Exit(1)
+	        }
+	        neoforgeInstaller = installer
 	    default:
 	        fmt.Fprintf(os.Stderr, "error: unknown server type %q\n", serverType)
 	        os.Exit(1)
@@ -169,15 +178,29 @@ var createCmd = &cobra.Command{
 	        os.Exit(1)
 	    }
 
+	    if neoforgeInstaller != "" {
+	        if err := server.InstallNeoForge(neoforgeInstaller); err != nil {
+	            fmt.Fprintf(os.Stderr, "error: %v\n", err)
+	            os.Exit(1)
+	        }
+	    }
+
 	    ram, err := promptRAM(reader, os.Stdout)
 	    if err != nil {
 	        fmt.Fprintf(os.Stderr, "error reading RAM allocation: %v\n", err)
 	        os.Exit(1)
 	    }
 
-	    if err := server.WriteStartScript(ram); err != nil {
-	        fmt.Fprintf(os.Stderr, "error writing start script: %v\n", err)
-	        os.Exit(1)
+	    if neoforgeInstaller != "" {
+	        if err := server.WriteUserJVMArgs(ram); err != nil {
+	            fmt.Fprintf(os.Stderr, "error writing JVM args: %v\n", err)
+	            os.Exit(1)
+	        }
+	    } else {
+	        if err := server.WriteStartScript(ram); err != nil {
+	            fmt.Fprintf(os.Stderr, "error writing start script: %v\n", err)
+	            os.Exit(1)
+	        }
 	    }
 
 	    if err := server.WriteEula(); err != nil {
@@ -195,7 +218,7 @@ var createCmd = &cobra.Command{
 }
 
 func init() {
-	createCmd.Flags().StringVarP(&serverType, "type", "t", "paper", "Server type (paper, vanilla, fabric)")
+	createCmd.Flags().StringVarP(&serverType, "type", "t", "paper", "Server type (paper, vanilla, fabric, neoforge)")
 	createCmd.Flags().StringVarP(&serverVersion, "version", "v", "", "Minecraft version (e.g. 1.21.1)")
 	createCmd.MarkFlagRequired("version")
 	rootCmd.AddCommand(createCmd)
