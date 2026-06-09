@@ -175,40 +175,6 @@ var createCmd = &cobra.Command{
 			serverVersion = v
 		}
 
-		if dirFlag != "" {
-			if dirFlag != "." {
-				if err := os.MkdirAll(dirFlag, 0755); err != nil {
-					fmt.Fprintf(os.Stderr, "error creating directory: %v\n", err)
-					os.Exit(1)
-				}
-				if err := os.Chdir(dirFlag); err != nil {
-					fmt.Fprintf(os.Stderr, "error changing to directory: %v\n", err)
-					os.Exit(1)
-				}
-			}
-		} else {
-			dir := fmt.Sprintf("%s-%s", serverType, serverVersion)
-			for i := 2; ; i++ {
-				if _, err := os.Stat(dir); os.IsNotExist(err) {
-					break
-				}
-				dir = fmt.Sprintf("%s-%s-%d", serverType, serverVersion, i)
-			}
-			if err := os.MkdirAll(dir, 0755); err != nil {
-				fmt.Fprintf(os.Stderr, "error creating directory: %v\n", err)
-				os.Exit(1)
-			}
-			if err := os.Chdir(dir); err != nil {
-				fmt.Fprintf(os.Stderr, "error changing to directory: %v\n", err)
-				os.Exit(1)
-			}
-		}
-
-		if _, err := os.Stat("nether.toml"); err == nil {
-			fmt.Println("error: a nether server already exists in this directory")
-			os.Exit(1)
-		}
-
 		accepted, err := promptEula(reader, os.Stdout)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "error reading input: %v\n", err)
@@ -258,6 +224,40 @@ var createCmd = &cobra.Command{
 				os.Exit(1)
 			}
 			port = p
+		}
+
+		if dirFlag != "" {
+			if dirFlag != "." {
+				if err := os.MkdirAll(dirFlag, 0755); err != nil {
+					fmt.Fprintf(os.Stderr, "error creating directory: %v\n", err)
+					os.Exit(1)
+				}
+				if err := os.Chdir(dirFlag); err != nil {
+					fmt.Fprintf(os.Stderr, "error changing to directory: %v\n", err)
+					os.Exit(1)
+				}
+			}
+		} else {
+			dir := fmt.Sprintf("%s-%s", serverType, serverVersion)
+			for i := 2; ; i++ {
+				if _, err := os.Stat(dir); os.IsNotExist(err) {
+					break
+				}
+				dir = fmt.Sprintf("%s-%s-%d", serverType, serverVersion, i)
+			}
+			if err := os.MkdirAll(dir, 0755); err != nil {
+				fmt.Fprintf(os.Stderr, "error creating directory: %v\n", err)
+				os.Exit(1)
+			}
+			if err := os.Chdir(dir); err != nil {
+				fmt.Fprintf(os.Stderr, "error changing to directory: %v\n", err)
+				os.Exit(1)
+			}
+		}
+
+		if _, err := os.Stat("nether.toml"); err == nil {
+			fmt.Println("error: a nether server already exists in this directory")
+			os.Exit(1)
 		}
 
 		javaVer := server.GetJavaVersionForMinecraft(serverVersion)
