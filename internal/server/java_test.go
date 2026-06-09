@@ -26,11 +26,17 @@ func TestGetJavaVersionForMinecraft(t *testing.T) {
 		{"1.20.6", 21},
 		{"1.21", 21},
 		{"1.21.1", 21},
+		// 1.26+ -> Java 25
+		{"1.26", 25},
+		{"1.26.1", 25},
+		{"1.27", 25},
 		// Fallbacks & edge cases
 		{"1.16.5", 16}, // Fallback for older
 		{"21", 21},
 		{"20", 17},
 		{"17", 16},
+		{"25", 21},
+		{"26", 25},
 		{"invalid", 21},
 	}
 

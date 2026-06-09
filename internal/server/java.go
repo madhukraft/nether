@@ -25,6 +25,9 @@ func getJavaVersionForMinecraft(mcVersion string) int {
 		// If it's a major number e.g. "21"
 		v, err := strconv.Atoi(parts[0])
 		if err == nil {
+			if v >= 26 {
+				return 25
+			}
 			if v >= 21 {
 				return 21
 			}
@@ -52,6 +55,14 @@ func getJavaVersionForMinecraft(mcVersion string) int {
 	}
 	if major == 17 {
 		return 16
+	}
+
+	if major >= 26 {
+		return 25
+	}
+
+	if major >= 21 && major <= 25 {
+		return 21
 	}
 
 	if major >= 18 && major <= 20 {
@@ -127,17 +138,8 @@ func GetJavaVersionFromJar(jarPath string) (int, error) {
 }
 
 func DownloadJava(mcVersion string) error {
-	var javaVer int
-	jarVer, err := GetJavaVersionFromJar("server.jar")
-	if err == nil {
-		javaVer = jarVer
-		fmt.Printf("Detected Java %d (from server.jar)\n", javaVer)
-	} else {
-		javaVer = getJavaVersionForMinecraft(mcVersion)
-		fmt.Printf("Using Java %d\n", javaVer)
-	}
-
-	fmt.Printf("Downloading Java %d...\n", javaVer)
+	javaVer := getJavaVersionForMinecraft(mcVersion)
+	fmt.Printf("Using Java %d\n", javaVer)
 
 	osVal := getAdoptiumOS()
 	archVal := getAdoptiumArch()
