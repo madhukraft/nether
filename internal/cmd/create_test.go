@@ -78,3 +78,29 @@ func TestParseRAM(t *testing.T) {
 	}
 }
 
+func TestPromptPort(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected int
+	}{
+		{"Default port", "\n", 25565},
+		{"Custom port", "12345\n", 12345},
+		{"Default with whitespace", "  \n", 25565},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			in := bufio.NewReader(strings.NewReader(tt.input))
+			var out bytes.Buffer
+			port, err := promptPort(in, &out)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if port != tt.expected {
+				t.Errorf("expected %d, got %d", tt.expected, port)
+			}
+		})
+	}
+}
+

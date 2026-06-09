@@ -186,10 +186,10 @@ func InstallNeoForge(installerFile string) error {
 	return nil
 }
 
-func WriteUserJVMArgs(ram string) error {
+func WriteUserJVMArgs(minRAM, maxRAM string) error {
 	flags := []string{
-		"-Xms" + ram,
-		"-Xmx" + ram,
+		"-Xms" + minRAM,
+		"-Xmx" + maxRAM,
 		"-XX:+AlwaysPreTouch",
 		"-XX:+DisableExplicitGC",
 		"-XX:+ParallelRefProcEnabled",

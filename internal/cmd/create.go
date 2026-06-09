@@ -14,6 +14,9 @@ import (
 
 var serverType string
 var serverVersion string
+var ramFlag string
+var minRAMFlag string
+var portFlag int
 
 func promptEula(in *bufio.Reader, out io.Writer) (bool, error) {
 	fmt.Fprint(out, "Do you accept the Minecraft EULA (https://aka.ms/MinecraftEULA)? [y/N]: ")
@@ -74,6 +77,30 @@ func promptRAM(in *bufio.Reader, out io.Writer) (string, error) {
 			return ram, nil
 		}
 		fmt.Fprintf(out, "error: %v. Please try again.\n", err)
+	}
+}
+
+func promptPort(in *bufio.Reader, out io.Writer) (int, error) {
+	for {
+		fmt.Fprint(out, "Enter server port [25565]: ")
+		input, err := in.ReadString('\n')
+		if err != nil {
+			return 0, err
+		}
+		input = strings.TrimSpace(input)
+		if input == "" {
+			return 25565, nil
+		}
+		port, err := strconv.Atoi(input)
+		if err != nil {
+			fmt.Fprintf(out, "error: invalid port. Please try again.\n")
+			continue
+		}
+		if port < 1 || port > 65535 {
+			fmt.Fprintf(out, "error: port must be between 1 and 65535. Please try again.\n")
+			continue
+		}
+		return port, nil
 	}
 }
 
@@ -201,22 +228,63 @@ var createCmd = &cobra.Command{
 	        }
 	    }
 
-	    ram, err := promptRAM(reader, os.Stdout)
-	    if err != nil {
-	        fmt.Fprintf(os.Stderr, "error reading RAM allocation: %v\n", err)
-	        os.Exit(1)
+	    var maxRAM string
+	    var minRAM string
+
+	    if ramFlag != "" {
+	        r, err := parseRAM(ramFlag)
+	        if err != nil {
+	            fmt.Fprintf(os.Stderr, "error: invalid RAM value %q: %v\n", ramFlag, err)
+	            os.Exit(1)
+	        }
+	        maxRAM = r
+	    } else {
+	        r, err := promptRAM(reader, os.Stdout)
+	        if err != nil {
+	            fmt.Fprintf(os.Stderr, "error reading RAM allocation: %v\n", err)
+	            os.Exit(1)
+	        }
+	        maxRAM = r
+	    }
+
+	    if minRAMFlag != "" {
+	        r, err := parseRAM(minRAMFlag)
+	        if err != nil {
+	            fmt.Fprintf(os.Stderr, "error: invalid min RAM value %q: %v\n", minRAMFlag, err)
+	            os.Exit(1)
+	        }
+	        minRAM = r
+	    } else {
+	        minRAM = maxRAM
 	    }
 
 	    if installerFile != "" {
-	        if err := server.WriteUserJVMArgs(ram); err != nil {
+	        if err := server.WriteUserJVMArgs(minRAM, maxRAM); err != nil {
 	            fmt.Fprintf(os.Stderr, "error writing JVM args: %v\n", err)
 	            os.Exit(1)
 	        }
 	    } else {
-	        if err := server.WriteStartScript(ram); err != nil {
+	        if err := server.WriteStartScript(minRAM, maxRAM); err != nil {
 	            fmt.Fprintf(os.Stderr, "error writing start script: %v\n", err)
 	            os.Exit(1)
 	        }
+	    }
+
+	    var port int
+	    if portFlag != 0 {
+	        port = portFlag
+	    } else {
+	        p, err := promptPort(reader, os.Stdout)
+	        if err != nil {
+	            fmt.Fprintf(os.Stderr, "error reading port: %v\n", err)
+	            os.Exit(1)
+	        }
+	        port = p
+	    }
+
+	    if err := server.WriteServerProperties(port); err != nil {
+	        fmt.Fprintf(os.Stderr, "error writing server.properties: %v\n", err)
+	        os.Exit(1)
 	    }
 
 	    if err := server.WriteEula(); err != nil {
@@ -236,6 +304,9 @@ var createCmd = &cobra.Command{
 func init() {
 	createCmd.Flags().StringVarP(&serverType, "type", "t", "paper", "Server type (paper, vanilla, fabric, neoforge, forge)")
 	createCmd.Flags().StringVarP(&serverVersion, "version", "v", "", "Minecraft version (e.g. 1.21.1)")
+	createCmd.Flags().StringVar(&ramFlag, "ram", "", "Amount of RAM for the server (e.g. 2G or 2048M)")
+	createCmd.Flags().StringVar(&minRAMFlag, "min-ram", "", "Minimum RAM for the server (defaults to same as max if not set)")
+	createCmd.Flags().IntVar(&portFlag, "port", 0, "Server port (default 25565)")
 	createCmd.MarkFlagRequired("version")
 	rootCmd.AddCommand(createCmd)
 }

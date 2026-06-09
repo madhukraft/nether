@@ -22,7 +22,7 @@ created = "%s"
     return os.WriteFile("nether.toml", []byte(content), 0644)
 }
 
-func WriteStartScript(ram string) error {
+func WriteStartScript(minRAM, maxRAM string) error {
 	var fileName string
 	var header string
 	var javaPath string
@@ -63,10 +63,15 @@ func WriteStartScript(ram string) error {
 	content := fmt.Sprintf("%s\n\n%s -Xms%s -Xmx%s %s -jar server.jar --nogui\n",
 		header,
 		javaPath,
-		ram,
-		ram,
+		minRAM,
+		maxRAM,
 		strings.Join(flags, " "),
 	)
 
 	return os.WriteFile(fileName, []byte(content), 0755)
+}
+
+func WriteServerProperties(port int) error {
+	content := fmt.Sprintf("server-port=%d\n", port)
+	return os.WriteFile("server.properties", []byte(content), 0644)
 }
