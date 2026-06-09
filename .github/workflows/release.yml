@@ -14,8 +14,10 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  release:
+  tag:
     runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.bump.outputs.tag }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -33,7 +35,7 @@ jobs:
         run: go test ./... -v
 
       - name: Bump version
-        id: tag
+        id: bump
         uses: anothrNick/github-tag-action@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -41,8 +43,36 @@ jobs:
           INITIAL_VERSION: v0.1.0
           RELEASE_BRANCHES: main
 
+  binaries:
+    needs: [tag]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - name: Fetch tags
         run: git fetch --tags origin
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: latest
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  docker:
+    needs: [tag]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
 
       - name: Log in to GHCR
         uses: docker/login-action@v3
@@ -64,16 +94,9 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
-            ghcr.io/${{ github.repository }}:${{ steps.tag.outputs.tag }}
+            ghcr.io/${{ github.repository }}:${{ needs.tag.outputs.tag }}
             ghcr.io/${{ github.repository }}:latest
           build-args: |
-            VERSION=${{ steps.tag.outputs.tag }}
-
-      - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@v6
-        with:
-          distribution: goreleaser
-          version: latest
-          args: release --clean
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            VERSION=${{ needs.tag.outputs.tag }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
