@@ -46,3 +46,4 @@ nfpms:
     formats:
       - deb
       - rpm
+      - archlinux

@@ -4,5 +4,6 @@
 Dockerfile
 .goreleaser.yaml
 .dockerignore
+dist
 nether
 *.md
