@@ -15,10 +15,9 @@ import (
 var serverType string
 var serverVersion string
 
-func promptEula(in io.Reader, out io.Writer) (bool, error) {
+func promptEula(in *bufio.Reader, out io.Writer) (bool, error) {
 	fmt.Fprint(out, "Do you accept the Minecraft EULA (https://aka.ms/MinecraftEULA)? [y/N]: ")
-	reader := bufio.NewReader(in)
-	response, err := reader.ReadString('\n')
+	response, err := in.ReadString('\n')
 	if err != nil {
 		return false, err
 	}
@@ -63,11 +62,10 @@ func parseRAM(input string) (string, error) {
 	return "", fmt.Errorf("missing unit (must specify G or M, e.g. 2G or 2048M)")
 }
 
-func promptRAM(in io.Reader, out io.Writer) (string, error) {
-	reader := bufio.NewReader(in)
+func promptRAM(in *bufio.Reader, out io.Writer) (string, error) {
 	for {
 		fmt.Fprint(out, "Enter the amount of RAM to allocate (e.g. 2G or 2048M): ")
-		input, err := reader.ReadString('\n')
+		input, err := in.ReadString('\n')
 		if err != nil {
 			return "", err
 		}
@@ -76,6 +74,44 @@ func promptRAM(in io.Reader, out io.Writer) (string, error) {
 			return ram, nil
 		}
 		fmt.Fprintf(out, "error: %v. Please try again.\n", err)
+	}
+}
+
+func promptCustomJavaVersion(in *bufio.Reader, out io.Writer, defaultVer int) (int, error) {
+	fmt.Fprintf(out, "Do you want to specify a custom Java version? (current: %d) [y/N]: ", defaultVer)
+	response, err := in.ReadString('\n')
+	if err != nil {
+		return 0, err
+	}
+	response = strings.TrimSpace(strings.ToLower(response))
+	if response != "y" && response != "yes" {
+		return 0, nil
+	}
+
+	for {
+		fmt.Fprint(out, "Enter Java major version (e.g. 21, 17, 25): ")
+		input, err := in.ReadString('\n')
+		if err != nil {
+			return 0, err
+		}
+		input = strings.TrimSpace(input)
+		if input == "" {
+			fmt.Fprintln(out, "No version entered, using default")
+			return 0, nil
+		}
+
+		ver, err := strconv.Atoi(input)
+		if err != nil {
+			fmt.Fprintf(out, "Invalid number: %v. Please enter a valid integer.\n", err)
+			continue
+		}
+
+		if ver < 8 || ver > 30 {
+			fmt.Fprintf(out, "Java version %d is outside reasonable range (8-30). Please try again.\n", ver)
+			continue
+		}
+
+		return ver, nil
 	}
 }
 
@@ -88,7 +124,9 @@ var createCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		accepted, err := promptEula(os.Stdin, os.Stdout)
+		reader := bufio.NewReader(os.Stdin)
+
+		accepted, err := promptEula(reader, os.Stdout)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "error reading input: %v\n", err)
 			os.Exit(1)
@@ -119,12 +157,19 @@ var createCmd = &cobra.Command{
 	        os.Exit(1)
 	    }
 
-	    if err := server.DownloadJava(serverVersion); err != nil {
+	    defaultJavaVer := server.GetJavaVersionForMinecraft(serverVersion)
+	    customVer, err := promptCustomJavaVersion(reader, os.Stdout, defaultJavaVer)
+	    if err != nil {
+	        fmt.Fprintf(os.Stderr, "error reading Java version input: %v\n", err)
+	        os.Exit(1)
+	    }
+
+	    if err := server.DownloadJava(serverVersion, customVer); err != nil {
 	        fmt.Fprintf(os.Stderr, "error setting up Java: %v\n", err)
 	        os.Exit(1)
 	    }
 
-	    ram, err := promptRAM(os.Stdin, os.Stdout)
+	    ram, err := promptRAM(reader, os.Stdout)
 	    if err != nil {
 	        fmt.Fprintf(os.Stderr, "error reading RAM allocation: %v\n", err)
 	        os.Exit(1)

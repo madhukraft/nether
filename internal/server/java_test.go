@@ -42,7 +42,7 @@ func TestGetJavaVersionForMinecraft(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.mcVersion, func(t *testing.T) {
-			got := getJavaVersionForMinecraft(tt.mcVersion)
+			got := GetJavaVersionForMinecraft(tt.mcVersion)
 			if got != tt.expected {
 				t.Errorf("getJavaVersionForMinecraft(%q) = %d; want %d", tt.mcVersion, got, tt.expected)
 			}

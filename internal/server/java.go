@@ -15,7 +15,7 @@ import (
 	"strings"
 )
 
-func getJavaVersionForMinecraft(mcVersion string) int {
+func GetJavaVersionForMinecraft(mcVersion string) int {
 	parts := strings.Split(mcVersion, ".")
 	if len(parts) == 0 {
 		return 21
@@ -137,9 +137,16 @@ func GetJavaVersionFromJar(jarPath string) (int, error) {
 	return 0, fmt.Errorf("no class files found in jar")
 }
 
-func DownloadJava(mcVersion string) error {
-	javaVer := getJavaVersionForMinecraft(mcVersion)
-	fmt.Printf("Using Java %d\n", javaVer)
+func DownloadJava(mcVersion string, customVer int) error {
+	javaVer := GetJavaVersionForMinecraft(mcVersion)
+	fmt.Printf("Detected Minecraft version %s requires Java %d\n", mcVersion, javaVer)
+
+	if customVer > 0 {
+		javaVer = customVer
+		fmt.Printf("Using custom Java version %d\n", javaVer)
+	} else {
+		fmt.Printf("Using Java %d\n", javaVer)
+	}
 
 	osVal := getAdoptiumOS()
 	archVal := getAdoptiumArch()

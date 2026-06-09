@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"bufio"
 	"bytes"
 	"strings"
 	"testing"
@@ -23,7 +24,7 @@ func TestPromptEula(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			in := strings.NewReader(tt.input)
+			in := bufio.NewReader(strings.NewReader(tt.input))
 			var out bytes.Buffer
 			accepted, err := promptEula(in, &out)
 			if err != nil {
