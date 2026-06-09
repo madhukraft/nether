@@ -139,7 +139,7 @@ func GetJavaVersionFromJar(jarPath string) (int, error) {
 
 func DownloadJava(mcVersion string, customVer int) error {
 	javaVer := GetJavaVersionForMinecraft(mcVersion)
-	fmt.Printf("Detected Minecraft version %s requires Java %d\n", mcVersion, javaVer)
+	// fmt.Printf("Detected Minecraft version %s requires Java %d\n", mcVersion, javaVer)
 
 	if customVer > 0 {
 		javaVer = customVer

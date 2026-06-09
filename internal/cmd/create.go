@@ -17,6 +17,7 @@ var serverVersion string
 var ramFlag string
 var minRAMFlag string
 var portFlag int
+var dirFlag string
 
 func promptEula(in *bufio.Reader, out io.Writer) (bool, error) {
 	fmt.Fprint(out, "Do you accept the Minecraft EULA (https://aka.ms/MinecraftEULA)? [y/N]: ")
@@ -146,12 +147,41 @@ var createCmd = &cobra.Command{
 	Use:   "create",
 	Short: "Create a new Minecraft server in the current directory",
 	Run: func(cmd *cobra.Command, args []string) {
+		reader := bufio.NewReader(os.Stdin)
+
+		if dirFlag != "" {
+			if dirFlag != "." {
+				if err := os.MkdirAll(dirFlag, 0755); err != nil {
+					fmt.Fprintf(os.Stderr, "error creating directory: %v\n", err)
+					os.Exit(1)
+				}
+				if err := os.Chdir(dirFlag); err != nil {
+					fmt.Fprintf(os.Stderr, "error changing to directory: %v\n", err)
+					os.Exit(1)
+				}
+			}
+		} else {
+			dir := fmt.Sprintf("%s-%s", serverType, serverVersion)
+			for i := 2; ; i++ {
+				if _, err := os.Stat(dir); os.IsNotExist(err) {
+					break
+				}
+				dir = fmt.Sprintf("%s-%s-%d", serverType, serverVersion, i)
+			}
+			if err := os.MkdirAll(dir, 0755); err != nil {
+				fmt.Fprintf(os.Stderr, "error creating directory: %v\n", err)
+				os.Exit(1)
+			}
+			if err := os.Chdir(dir); err != nil {
+				fmt.Fprintf(os.Stderr, "error changing to directory: %v\n", err)
+				os.Exit(1)
+			}
+		}
+
 		if _, err := os.Stat("nether.toml"); err == nil {
 			fmt.Println("error: a nether server already exists in this directory")
 			os.Exit(1)
 		}
-
-		reader := bufio.NewReader(os.Stdin)
 
 		accepted, err := promptEula(reader, os.Stdout)
 		if err != nil {
@@ -307,6 +337,7 @@ func init() {
 	createCmd.Flags().StringVar(&ramFlag, "ram", "", "Amount of RAM for the server (e.g. 2G or 2048M)")
 	createCmd.Flags().StringVar(&minRAMFlag, "min-ram", "", "Minimum RAM for the server (defaults to same as max if not set)")
 	createCmd.Flags().IntVar(&portFlag, "port", 0, "Server port (default 25565)")
+	createCmd.Flags().StringVar(&dirFlag, "dir", "", "Directory to create the server in (use '.' for current directory)")
 	createCmd.MarkFlagRequired("version")
 	rootCmd.AddCommand(createCmd)
 }
