@@ -3,7 +3,6 @@ package server
 import (
 	"fmt"
 	"os"
-	"runtime"
 	"strings"
 	"time"
 )
@@ -23,23 +22,6 @@ created = "%s"
 }
 
 func WriteStartScript(minRAM, maxRAM string) error {
-	var fileName string
-	var header string
-	var javaPath string
-	var lineEnd string
-
-	if runtime.GOOS == "windows" {
-		fileName = "start.bat"
-		header = "@echo off"
-		javaPath = `java\bin\java.exe`
-		lineEnd = "\r\n"
-	} else {
-		fileName = "start.sh"
-		header = "#!/usr/bin/env sh"
-		javaPath = "./java/bin/java"
-		lineEnd = "\n"
-	}
-
 	flags := []string{
 		"-XX:+AlwaysPreTouch",
 		"-XX:+DisableExplicitGC",
@@ -62,17 +44,15 @@ func WriteStartScript(minRAM, maxRAM string) error {
 		"-Dusing.aikars.flags=https://mcflags.emc.gs",
 		"-Daikars.new.flags=true",
 	}
+	flagLine := strings.Join(flags, " ")
 
-	content := fmt.Sprintf("%s%s%s%s -Xms%s -Xmx%s %s -jar server.jar --nogui%s",
-		header, lineEnd, lineEnd,
-		javaPath,
-		minRAM,
-		maxRAM,
-		strings.Join(flags, " "),
-		lineEnd,
-	)
+	shContent := fmt.Sprintf("#!/usr/bin/env sh\n\n./java/bin/java -Xms%s -Xmx%s %s -jar server.jar --nogui\n", minRAM, maxRAM, flagLine)
+	batContent := fmt.Sprintf("@echo off\r\n\r\njava\\bin\\java.exe -Xms%s -Xmx%s %s -jar server.jar --nogui\r\n", minRAM, maxRAM, flagLine)
 
-	return os.WriteFile(fileName, []byte(content), 0755)
+	if err := os.WriteFile("run.sh", []byte(shContent), 0755); err != nil {
+		return err
+	}
+	return os.WriteFile("run.bat", []byte(batContent), 0755)
 }
 
 func WriteServerProperties(port int) error {

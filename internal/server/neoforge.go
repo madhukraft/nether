@@ -170,6 +170,9 @@ func InstallNeoForge(installerFile string) error {
 	if err := patchScriptJava("run.sh", 0755); err != nil {
 		return fmt.Errorf("failed to fix run script: %w", err)
 	}
+	if err := patchScriptJava("run.bat", 0644); err != nil {
+		return fmt.Errorf("failed to fix run.bat: %w", err)
+	}
 
 	return nil
 }
