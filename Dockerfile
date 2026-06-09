@@ -10,4 +10,5 @@ RUN CGO_ENABLED=0 go build -ldflags="-s -w -X github.com/madhukraft/nether/inter
 FROM alpine:3.21
 RUN apk add --no-cache ca-certificates tzdata
 COPY --from=builder /nether /usr/local/bin/nether
+WORKDIR /data
 ENTRYPOINT ["nether"]

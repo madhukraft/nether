@@ -28,6 +28,11 @@ All flags at once:
 nether create --type paper --version 1.21.1 --ram 4G --port 25565
 ```
 
+With Docker (creates files in your current directory):
+```
+docker run --rm -it -v .:/data ghcr.io/madhukraft/nether create
+```
+
 Server types: `paper`, `vanilla`, `fabric`, `neoforge`, `forge`
 
 ## How it works
