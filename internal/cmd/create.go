@@ -105,8 +105,10 @@ var createCmd = &cobra.Command{
 	            os.Exit(1)
 	        }
 	    case "vanilla":
-	        fmt.Println("Vanilla support coming soon")
-	        os.Exit(0)
+	        if err := server.DownloadVanilla(serverVersion); err != nil {
+	            fmt.Fprintf(os.Stderr, "error: %v\n", err)
+	            os.Exit(1)
+	        }
 	    default:
 	        fmt.Fprintf(os.Stderr, "error: unknown server type %q\n", serverType)
 	        os.Exit(1)

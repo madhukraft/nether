@@ -90,7 +90,7 @@ func DownloadPaper(version string) error {
     }
 
     url := fmt.Sprintf("%s/versions/%s/builds/%d/downloads/%s", paperAPI, version, build, jarName)
-    fmt.Printf("Downloading %s (build %d)...\n", jarName, build)
+	fmt.Printf("Downloading Paper server (build %d)...\n", build)
 
     resp, err := http.Get(url)
     if err != nil {

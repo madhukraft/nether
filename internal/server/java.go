@@ -131,16 +131,16 @@ func DownloadJava(mcVersion string) error {
 	jarVer, err := GetJavaVersionFromJar("server.jar")
 	if err == nil {
 		javaVer = jarVer
-		fmt.Printf("Detected target Java version %d from server.jar\n", javaVer)
+		fmt.Printf("Detected Java %d (from server.jar)\n", javaVer)
 	} else {
 		javaVer = getJavaVersionForMinecraft(mcVersion)
-		fmt.Printf("Could not detect Java version from server.jar: %v. Falling back to MC mapping: Java %d\n", err, javaVer)
+		fmt.Printf("Using Java %d\n", javaVer)
 	}
+
+	fmt.Printf("Downloading Java %d...\n", javaVer)
 
 	osVal := getAdoptiumOS()
 	archVal := getAdoptiumArch()
-
-	fmt.Printf("Fetching Java %d JRE/JDK for %s/%s...\n", javaVer, osVal, archVal)
 
 	// Attempt to download JRE first
 	url := fmt.Sprintf("https://api.adoptium.net/v3/binary/latest/%d/ga/%s/%s/jre/hotspot/normal/eclipse", javaVer, osVal, archVal)
@@ -152,7 +152,6 @@ func DownloadJava(mcVersion string) error {
 	// Fallback to JDK if JRE is not found
 	if resp.StatusCode == http.StatusNotFound {
 		resp.Body.Close()
-		fmt.Printf("JRE not found. Attempting to fetch Java %d JDK instead...\n", javaVer)
 		url = fmt.Sprintf("https://api.adoptium.net/v3/binary/latest/%d/ga/%s/%s/jdk/hotspot/normal/eclipse", javaVer, osVal, archVal)
 		resp, err = http.Get(url)
 		if err != nil {
@@ -176,7 +175,6 @@ func DownloadJava(mcVersion string) error {
 		os.Remove(tempFile)
 	}()
 
-	fmt.Println("Downloading Java archive...")
 	_, err = io.Copy(out, resp.Body)
 	if err != nil {
 		return fmt.Errorf("failed to write Java download: %w", err)
@@ -197,7 +195,7 @@ func DownloadJava(mcVersion string) error {
 		return fmt.Errorf("failed to detect archive type: %w", err)
 	}
 
-	fmt.Printf("Extracting %s archive to ./java...\n", archiveType)
+	fmt.Println("Installing Java...")
 	if archiveType == "tar.gz" {
 		if err := extractTarGz(tempFile, "java"); err != nil {
 			return fmt.Errorf("failed to extract tar.gz: %w", err)
