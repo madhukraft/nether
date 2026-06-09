@@ -18,6 +18,7 @@ var ramFlag string
 var minRAMFlag string
 var portFlag int
 var dirFlag string
+var javaFlag int
 
 func promptEula(in *bufio.Reader, out io.Writer) (bool, error) {
 	fmt.Fprint(out, "Do you accept the Minecraft EULA (https://aka.ms/MinecraftEULA)? [y/N]: ")
@@ -83,7 +84,7 @@ func promptRAM(in *bufio.Reader, out io.Writer) (string, error) {
 
 func promptPort(in *bufio.Reader, out io.Writer) (int, error) {
 	for {
-		fmt.Fprint(out, "Enter server port [25565]: ")
+		fmt.Fprint(out, "Server port (press Enter for 25565): ")
 		input, err := in.ReadString('\n')
 		if err != nil {
 			return 0, err
@@ -105,41 +106,48 @@ func promptPort(in *bufio.Reader, out io.Writer) (int, error) {
 	}
 }
 
-func promptCustomJavaVersion(in *bufio.Reader, out io.Writer, defaultVer int) (int, error) {
-	fmt.Fprintf(out, "Do you want to specify a custom Java version? (current: %d) [y/N]: ", defaultVer)
-	response, err := in.ReadString('\n')
-	if err != nil {
-		return 0, err
-	}
-	response = strings.TrimSpace(strings.ToLower(response))
-	if response != "y" && response != "yes" {
-		return 0, nil
-	}
-
+func promptVersion(in *bufio.Reader, out io.Writer, serverType string) (string, error) {
 	for {
-		fmt.Fprint(out, "Enter Java major version (e.g. 21, 17, 25): ")
+		fmt.Fprint(out, "Minecraft version (e.g. 1.21.1): ")
 		input, err := in.ReadString('\n')
 		if err != nil {
-			return 0, err
+			return "", err
 		}
 		input = strings.TrimSpace(input)
 		if input == "" {
-			fmt.Fprintln(out, "No version entered, using default")
-			return 0, nil
+			fmt.Fprintln(out, "Version cannot be empty.")
+			continue
 		}
+		if err := server.ValidateVersion(serverType, input); err != nil {
+			fmt.Fprintf(out, "error: %v. Try again.\n", err)
+			continue
+		}
+		return input, nil
+	}
+}
 
-		ver, err := strconv.Atoi(input)
+func promptServerType(in *bufio.Reader, out io.Writer) (string, error) {
+	types := []string{"paper", "vanilla", "fabric", "neoforge", "forge"}
+	for {
+		fmt.Fprintln(out, "Select server type:")
+		for i, t := range types {
+			fmt.Fprintf(out, "  %d) %s\n", i+1, t)
+		}
+		fmt.Fprint(out, "Enter number [1]: ")
+		input, err := in.ReadString('\n')
 		if err != nil {
-			fmt.Fprintf(out, "Invalid number: %v. Please enter a valid integer.\n", err)
+			return "", err
+		}
+		input = strings.TrimSpace(input)
+		if input == "" {
+			return "paper", nil
+		}
+		n, err := strconv.Atoi(input)
+		if err != nil || n < 1 || n > len(types) {
+			fmt.Fprintf(out, "error: enter a number between 1 and %d.\n", len(types))
 			continue
 		}
-
-		if ver < 8 || ver > 30 {
-			fmt.Fprintf(out, "Java version %d is outside reasonable range (8-30). Please try again.\n", ver)
-			continue
-		}
-
-		return ver, nil
+		return types[n-1], nil
 	}
 }
 
@@ -148,6 +156,24 @@ var createCmd = &cobra.Command{
 	Short: "Create a new Minecraft server in the current directory",
 	Run: func(cmd *cobra.Command, args []string) {
 		reader := bufio.NewReader(os.Stdin)
+
+		if !cmd.Flags().Changed("type") {
+			t, err := promptServerType(reader, os.Stdout)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "error reading server type: %v\n", err)
+				os.Exit(1)
+			}
+			serverType = t
+		}
+
+		if !cmd.Flags().Changed("version") {
+			v, err := promptVersion(reader, os.Stdout, serverType)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "error reading version: %v\n", err)
+				os.Exit(1)
+			}
+			serverVersion = v
+		}
 
 		if dirFlag != "" {
 			if dirFlag != "." {
@@ -193,141 +219,142 @@ var createCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-	    var installerFile string
-	    switch serverType {
-	    case "paper":
-	        if err := server.DownloadPaper(serverVersion); err != nil {
-	            fmt.Fprintf(os.Stderr, "error: %v\n", err)
-	            os.Exit(1)
-	        }
-	    case "vanilla":
-	        if err := server.DownloadVanilla(serverVersion); err != nil {
-	            fmt.Fprintf(os.Stderr, "error: %v\n", err)
-	            os.Exit(1)
-	        }
-	    case "fabric":
-	        if err := server.DownloadFabric(serverVersion); err != nil {
-	            fmt.Fprintf(os.Stderr, "error: %v\n", err)
-	            os.Exit(1)
-	        }
-	    case "neoforge":
-	        fmt.Println("Fetching NeoForge version...")
-	        installer, err := server.DownloadNeoForge(serverVersion)
-	        if err != nil {
-	            fmt.Fprintf(os.Stderr, "error: %v\n", err)
-	            os.Exit(1)
-	        }
-	        installerFile = installer
-	    case "forge":
-	        fmt.Println("Fetching Forge version...")
-	        installer, err := server.DownloadForge(serverVersion)
-	        if err != nil {
-	            fmt.Fprintf(os.Stderr, "error: %v\n", err)
-	            os.Exit(1)
-	        }
-	        installerFile = installer
-	    default:
-	        fmt.Fprintf(os.Stderr, "error: unknown server type %q\n", serverType)
-	        os.Exit(1)
-	    }
+		var maxRAM string
+		if ramFlag != "" {
+			r, err := parseRAM(ramFlag)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "error: invalid RAM value %q: %v\n", ramFlag, err)
+				os.Exit(1)
+			}
+			maxRAM = r
+		} else {
+			r, err := promptRAM(reader, os.Stdout)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "error reading RAM allocation: %v\n", err)
+				os.Exit(1)
+			}
+			maxRAM = r
+		}
 
-	    defaultJavaVer := server.GetJavaVersionForMinecraft(serverVersion)
-	    customVer, err := promptCustomJavaVersion(reader, os.Stdout, defaultJavaVer)
-	    if err != nil {
-	        fmt.Fprintf(os.Stderr, "error reading Java version input: %v\n", err)
-	        os.Exit(1)
-	    }
+		var minRAM string
+		if minRAMFlag != "" {
+			r, err := parseRAM(minRAMFlag)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "error: invalid min RAM value %q: %v\n", minRAMFlag, err)
+				os.Exit(1)
+			}
+			minRAM = r
+		} else {
+			minRAM = maxRAM
+		}
 
-	    if err := server.DownloadJava(serverVersion, customVer); err != nil {
-	        fmt.Fprintf(os.Stderr, "error setting up Java: %v\n", err)
-	        os.Exit(1)
-	    }
+		var port int
+		if portFlag != 0 {
+			port = portFlag
+		} else {
+			p, err := promptPort(reader, os.Stdout)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "error reading port: %v\n", err)
+				os.Exit(1)
+			}
+			port = p
+		}
 
-	    if installerFile != "" {
-	        switch serverType {
-	        case "neoforge":
-	            if err := server.InstallNeoForge(installerFile); err != nil {
-	                fmt.Fprintf(os.Stderr, "error: %v\n", err)
-	                os.Exit(1)
-	            }
-	        case "forge":
-	            if err := server.InstallForge(installerFile); err != nil {
-	                fmt.Fprintf(os.Stderr, "error: %v\n", err)
-	                os.Exit(1)
-	            }
-	        }
-	    }
+		javaVer := server.GetJavaVersionForMinecraft(serverVersion)
+		if javaFlag != 0 {
+			if javaFlag < 8 || javaFlag > 30 {
+				fmt.Fprintf(os.Stderr, "error: Java version %d is outside reasonable range (8-30)\n", javaFlag)
+				os.Exit(1)
+			}
+			javaVer = javaFlag
+		}
 
-	    var maxRAM string
-	    var minRAM string
+		var installerFile string
+		switch serverType {
+		case "paper":
+			if err := server.DownloadPaper(serverVersion); err != nil {
+				fmt.Fprintf(os.Stderr, "error: %v\n", err)
+				os.Exit(1)
+			}
+		case "vanilla":
+			if err := server.DownloadVanilla(serverVersion); err != nil {
+				fmt.Fprintf(os.Stderr, "error: %v\n", err)
+				os.Exit(1)
+			}
+		case "fabric":
+			if err := server.DownloadFabric(serverVersion); err != nil {
+				fmt.Fprintf(os.Stderr, "error: %v\n", err)
+				os.Exit(1)
+			}
+		case "neoforge":
+			fmt.Println("Fetching NeoForge version...")
+			installer, err := server.DownloadNeoForge(serverVersion)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "error: %v\n", err)
+				os.Exit(1)
+			}
+			installerFile = installer
+		case "forge":
+			fmt.Println("Fetching Forge version...")
+			installer, err := server.DownloadForge(serverVersion)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "error: %v\n", err)
+				os.Exit(1)
+			}
+			installerFile = installer
+		default:
+			fmt.Fprintf(os.Stderr, "error: unknown server type %q\n", serverType)
+			os.Exit(1)
+		}
 
-	    if ramFlag != "" {
-	        r, err := parseRAM(ramFlag)
-	        if err != nil {
-	            fmt.Fprintf(os.Stderr, "error: invalid RAM value %q: %v\n", ramFlag, err)
-	            os.Exit(1)
-	        }
-	        maxRAM = r
-	    } else {
-	        r, err := promptRAM(reader, os.Stdout)
-	        if err != nil {
-	            fmt.Fprintf(os.Stderr, "error reading RAM allocation: %v\n", err)
-	            os.Exit(1)
-	        }
-	        maxRAM = r
-	    }
+		if err := server.DownloadJava(serverVersion, javaVer); err != nil {
+			fmt.Fprintf(os.Stderr, "error setting up Java: %v\n", err)
+			os.Exit(1)
+		}
 
-	    if minRAMFlag != "" {
-	        r, err := parseRAM(minRAMFlag)
-	        if err != nil {
-	            fmt.Fprintf(os.Stderr, "error: invalid min RAM value %q: %v\n", minRAMFlag, err)
-	            os.Exit(1)
-	        }
-	        minRAM = r
-	    } else {
-	        minRAM = maxRAM
-	    }
+		if installerFile != "" {
+			switch serverType {
+			case "neoforge":
+				if err := server.InstallNeoForge(installerFile); err != nil {
+					fmt.Fprintf(os.Stderr, "error: %v\n", err)
+					os.Exit(1)
+				}
+			case "forge":
+				if err := server.InstallForge(installerFile); err != nil {
+					fmt.Fprintf(os.Stderr, "error: %v\n", err)
+					os.Exit(1)
+				}
+			}
+		}
 
-	    if installerFile != "" {
-	        if err := server.WriteUserJVMArgs(minRAM, maxRAM); err != nil {
-	            fmt.Fprintf(os.Stderr, "error writing JVM args: %v\n", err)
-	            os.Exit(1)
-	        }
-	    } else {
-	        if err := server.WriteStartScript(minRAM, maxRAM); err != nil {
-	            fmt.Fprintf(os.Stderr, "error writing start script: %v\n", err)
-	            os.Exit(1)
-	        }
-	    }
+		if installerFile != "" {
+			if err := server.WriteUserJVMArgs(minRAM, maxRAM); err != nil {
+				fmt.Fprintf(os.Stderr, "error writing JVM args: %v\n", err)
+				os.Exit(1)
+			}
+		} else {
+			if err := server.WriteStartScript(minRAM, maxRAM); err != nil {
+				fmt.Fprintf(os.Stderr, "error writing start script: %v\n", err)
+				os.Exit(1)
+			}
+		}
 
-	    var port int
-	    if portFlag != 0 {
-	        port = portFlag
-	    } else {
-	        p, err := promptPort(reader, os.Stdout)
-	        if err != nil {
-	            fmt.Fprintf(os.Stderr, "error reading port: %v\n", err)
-	            os.Exit(1)
-	        }
-	        port = p
-	    }
+		if err := server.WriteServerProperties(port); err != nil {
+			fmt.Fprintf(os.Stderr, "error writing server.properties: %v\n", err)
+			os.Exit(1)
+		}
 
-	    if err := server.WriteServerProperties(port); err != nil {
-	        fmt.Fprintf(os.Stderr, "error writing server.properties: %v\n", err)
-	        os.Exit(1)
-	    }
+		if err := server.WriteEula(); err != nil {
+			fmt.Fprintf(os.Stderr, "error writing eula.txt: %v\n", err)
+			os.Exit(1)
+		}
 
-	    if err := server.WriteEula(); err != nil {
-	        fmt.Fprintf(os.Stderr, "error writing eula.txt: %v\n", err)
-	        os.Exit(1)
-	    }
+		if err := server.WriteConfig(serverType, serverVersion); err != nil {
+			fmt.Fprintf(os.Stderr, "error writing nether.toml: %v\n", err)
+			os.Exit(1)
+		}
 
-	    if err := server.WriteConfig(serverType, serverVersion); err != nil {
-	        fmt.Fprintf(os.Stderr, "error writing nether.toml: %v\n", err)
-	        os.Exit(1)
-	    }
-
-	    fmt.Println("Done! Server ready.")
+		fmt.Println("Done! Server ready.")
 	},
 }
 
@@ -338,6 +365,6 @@ func init() {
 	createCmd.Flags().StringVar(&minRAMFlag, "min-ram", "", "Minimum RAM for the server (defaults to same as max if not set)")
 	createCmd.Flags().IntVar(&portFlag, "port", 0, "Server port (default 25565)")
 	createCmd.Flags().StringVar(&dirFlag, "dir", "", "Directory to create the server in (use '.' for current directory)")
-	createCmd.MarkFlagRequired("version")
+	createCmd.Flags().IntVar(&javaFlag, "java", 0, "Java major version (auto-detected if not set)")
 	rootCmd.AddCommand(createCmd)
 }
