@@ -86,7 +86,7 @@ homebrew_casks:
       license: "MIT"
       binaries:
           - nether
-      skip_upload: true
+      skip_upload: false
 
 scoops:
     - name: nether
@@ -97,7 +97,7 @@ scoops:
       description: "Nether - Minecraft server setup tool"
       homepage: "https://github.com/madhukraft/nether"
       license: "MIT"
-      skip_upload: true
+      skip_upload: false
 
 nfpms:
     - package_name: nether
