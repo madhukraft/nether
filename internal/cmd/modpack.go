@@ -1,8 +1,10 @@
 package cmd
 
 import (
+	"bufio"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/madhukraft/nether/internal/config"
 	"github.com/madhukraft/nether/internal/modrinth"
@@ -25,6 +27,22 @@ var modpackInstallCmd = &cobra.Command{
 
 		reinstall, _ := cmd.Flags().GetBool("reinstall")
 
+		if !reinstall {
+			for _, m := range cfg.Modpacks.Installed {
+				if m.Slug == slug || m.ProjectID == slug {
+					fmt.Printf("Modpack %q is already installed (version %s). Reinstall? (y/N): ", slug, m.VersionNumber)
+					reader := bufio.NewReader(os.Stdin)
+					resp, _ := reader.ReadString('\n')
+					resp = strings.TrimSpace(resp)
+					if resp != "y" && resp != "Y" {
+						os.Exit(0)
+					}
+					reinstall = true
+					break
+				}
+			}
+		}
+
 		c := modrinth.NewClient()
 		result, err := c.InstallModpack(slug, reinstall)
 		if err != nil {
@@ -32,12 +50,28 @@ var modpackInstallCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		cfg.Modpacks.Installed = append(cfg.Modpacks.Installed, modrinth.InstalledModpack{
-			Slug:          result.Mod.Slug,
-			ProjectID:     result.Mod.ProjectID,
-			VersionID:     result.Mod.VersionID,
-			VersionNumber: result.Mod.VersionNumber,
-		})
+		// Update or append the entry
+		found := false
+		for i, m := range cfg.Modpacks.Installed {
+			if m.Slug == result.Mod.Slug || m.ProjectID == result.Mod.ProjectID {
+				cfg.Modpacks.Installed[i] = modrinth.InstalledModpack{
+					Slug:          result.Mod.Slug,
+					ProjectID:     result.Mod.ProjectID,
+					VersionID:     result.Mod.VersionID,
+					VersionNumber: result.Mod.VersionNumber,
+				}
+				found = true
+				break
+			}
+		}
+		if !found {
+			cfg.Modpacks.Installed = append(cfg.Modpacks.Installed, modrinth.InstalledModpack{
+				Slug:          result.Mod.Slug,
+				ProjectID:     result.Mod.ProjectID,
+				VersionID:     result.Mod.VersionID,
+				VersionNumber: result.Mod.VersionNumber,
+			})
+		}
 
 		if err := config.Save(cfg); err != nil {
 			fmt.Fprintf(os.Stderr, "Warning: failed to save config: %v\n", err)
