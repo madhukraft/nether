@@ -25,6 +25,13 @@ builds:
 archives:
     - formats: ["binary"]
       name_template: "{{ .ProjectName }}-{{ .Os }}-{{ .Arch }}"
+      goos:
+          - linux
+          - darwin
+    - formats: ["zip"]
+      name_template: "{{ .ProjectName }}-{{ .Os }}-{{ .Arch }}"
+      goos:
+          - windows
 
 checksum:
     name_template: checksums.txt
@@ -95,6 +102,8 @@ scoops:
       description: "Nether - Minecraft server setup tool"
       homepage: "https://github.com/madhukraft/nether"
       license: "MIT"
+      goarch:
+          - amd64
       skip_upload: false
 
 nfpms:
