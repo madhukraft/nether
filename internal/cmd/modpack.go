@@ -50,28 +50,12 @@ var modpackInstallCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		// Update or append the entry
-		found := false
-		for i, m := range cfg.Modpacks.Installed {
-			if m.Slug == result.Mod.Slug || m.ProjectID == result.Mod.ProjectID {
-				cfg.Modpacks.Installed[i] = modrinth.InstalledModpack{
-					Slug:          result.Mod.Slug,
-					ProjectID:     result.Mod.ProjectID,
-					VersionID:     result.Mod.VersionID,
-					VersionNumber: result.Mod.VersionNumber,
-				}
-				found = true
-				break
-			}
-		}
-		if !found {
-			cfg.Modpacks.Installed = append(cfg.Modpacks.Installed, modrinth.InstalledModpack{
-				Slug:          result.Mod.Slug,
-				ProjectID:     result.Mod.ProjectID,
-				VersionID:     result.Mod.VersionID,
-				VersionNumber: result.Mod.VersionNumber,
-			})
-		}
+		cfg.UpsertModpack(modrinth.InstalledModpack{
+			Slug:          result.Mod.Slug,
+			ProjectID:     result.Mod.ProjectID,
+			VersionID:     result.Mod.VersionID,
+			VersionNumber: result.Mod.VersionNumber,
+		})
 
 		if err := config.Save(cfg); err != nil {
 			fmt.Fprintf(os.Stderr, "Warning: failed to save config: %v\n", err)

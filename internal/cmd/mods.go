@@ -30,13 +30,12 @@ var modsInstallCmd = &cobra.Command{
 
 		slug = modrinth.ParseSlug(slug)
 
-		for _, m := range cfg.Mods.Installed {
-			if m.Slug == slug || m.ProjectID == slug {
-				if !reinstall {
+		if cfg.HasMod(slug) && !reinstall {
+			for _, m := range cfg.Mods.Installed {
+				if m.Slug == slug || m.ProjectID == slug {
 					fmt.Printf("%s %s already installed. Use --reinstall to update.\n", m.Slug, m.VersionNumber)
 					return
 				}
-				break
 			}
 		}
 
@@ -49,30 +48,9 @@ var modsInstallCmd = &cobra.Command{
 		}
 
 		cfg.Mods.AutoInstallDeps = autoDeps
-
-		found := false
-		for i, m := range cfg.Mods.Installed {
-			if m.Slug == result.Mod.Slug || m.ProjectID == result.Mod.ProjectID {
-				cfg.Mods.Installed[i] = result.Mod
-				found = true
-				break
-			}
-		}
-		if !found {
-			cfg.Mods.Installed = append(cfg.Mods.Installed, result.Mod)
-		}
-
+		cfg.UpsertMod(result.Mod)
 		for _, dep := range result.Deps {
-			found := false
-			for _, existing := range cfg.Mods.Installed {
-				if existing.ProjectID == dep.Mod.ProjectID {
-					found = true
-					break
-				}
-			}
-			if !found {
-				cfg.Mods.Installed = append(cfg.Mods.Installed, dep.Mod)
-			}
+			cfg.AddModIfMissing(dep.Mod)
 		}
 
 		if err := config.Save(cfg); err != nil {

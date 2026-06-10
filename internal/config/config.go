@@ -48,6 +48,44 @@ func Load() (*Config, error) {
 	return &cfg, nil
 }
 
+func (c *Config) UpsertMod(mod modrinth.InstalledMod) {
+	for i, m := range c.Mods.Installed {
+		if m.Slug == mod.Slug || m.ProjectID == mod.ProjectID {
+			c.Mods.Installed[i] = mod
+			return
+		}
+	}
+	c.Mods.Installed = append(c.Mods.Installed, mod)
+}
+
+func (c *Config) AddModIfMissing(mod modrinth.InstalledMod) {
+	for _, m := range c.Mods.Installed {
+		if m.ProjectID == mod.ProjectID {
+			return
+		}
+	}
+	c.Mods.Installed = append(c.Mods.Installed, mod)
+}
+
+func (c *Config) HasMod(slugOrID string) bool {
+	for _, m := range c.Mods.Installed {
+		if m.Slug == slugOrID || m.ProjectID == slugOrID {
+			return true
+		}
+	}
+	return false
+}
+
+func (c *Config) UpsertModpack(mod modrinth.InstalledModpack) {
+	for i, m := range c.Modpacks.Installed {
+		if m.Slug == mod.Slug || m.ProjectID == mod.ProjectID {
+			c.Modpacks.Installed[i] = mod
+			return
+		}
+	}
+	c.Modpacks.Installed = append(c.Modpacks.Installed, mod)
+}
+
 func Save(cfg *Config) error {
 	f, err := os.Create(filename())
 	if err != nil {
