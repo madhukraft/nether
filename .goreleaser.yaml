@@ -3,47 +3,53 @@ version: 2
 project_name: nether
 
 env:
-  - CGO_ENABLED=0
+    - CGO_ENABLED=0
 
 builds:
-  - main: ./cmd/nether
-    binary: nether
-    ldflags:
-      - -s -w -X github.com/madhukraft/nether/internal/cmd.Version={{ .Version }}
-    goos:
-      - linux
-      - darwin
-      - windows
-    goarch:
-      - amd64
-      - arm64
+    - main: ./cmd/nether
+      binary: nether
+      ldflags:
+          - -s -w -X github.com/madhukraft/nether/internal/cmd.Version={{ .Version }}
+      goos:
+          - linux
+          - darwin
+          - windows
+      goarch:
+          - amd64
+          - arm64
 
 archives:
-  - format: tar.gz
-    format_overrides:
-      - goos: windows
-        format: zip
+    - format: binary
+      name_template: "{{ .ProjectName }}-{{ .Os }}-{{ .Arch }}"
 
 checksum:
-  name_template: checksums.txt
+    name_template: checksums.txt
 
 snapshot:
-  version_template: "{{ .Tag }}-next"
+    version_template: "{{ .Tag }}-next"
+
+release:
+    footer: |-
+        ### Docker
+
+        ```sh
+        docker pull ghcr.io/madhukraft/nether:{{ .Tag }}
+        ```
 
 changelog:
-  sort: asc
-  filters:
-    exclude:
-      - "^docs:"
-      - "^test:"
+    sort: asc
+    filters:
+        exclude:
+            - "^docs:"
+            - "^test:"
 
 nfpms:
-  - package_name: nether
-    homepage: "https://github.com/madhukraft/nether"
-    description: "Nether - Minecraft server setup tool"
-    maintainer: "Madhukraft"
-    license: "MIT"
-    formats:
-      - deb
-      - rpm
-      - archlinux
+    - package_name: nether
+      homepage: "https://github.com/madhukraft/nether"
+      description: "Nether - Minecraft server setup tool"
+      maintainer: "Madhukraft"
+      license: "MIT"
+      formats:
+          - deb
+          - rpm
+          - archlinux
