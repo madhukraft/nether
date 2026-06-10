@@ -3,9 +3,7 @@ package server
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
-	"os"
 )
 
 const vanillaManifestURL = "https://launchermeta.mojang.com/mc/game/version_manifest_v2.json"
@@ -91,24 +89,5 @@ func DownloadVanilla(version string) error {
 		return err
 	}
 
-	fmt.Println("Downloading vanilla server...")
-
-	resp, err := http.Get(jarURL)
-	if err != nil {
-		return fmt.Errorf("failed to download server jar: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("unexpected status %d when downloading jar", resp.StatusCode)
-	}
-
-	out, err := os.Create("server.jar")
-	if err != nil {
-		return err
-	}
-	defer out.Close()
-
-	_, err = io.Copy(out, resp.Body)
-	return err
+	return downloadFile(jarURL, "server.jar", "Vanilla "+version)
 }
