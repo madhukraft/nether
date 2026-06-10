@@ -10,8 +10,8 @@ permissions:
     packages: write
 
 concurrency:
-    group: release-${{ github.ref }}
-    cancel-in-progress: true
+    group: nether-release
+    cancel-in-progress: false
 
 jobs:
     tag:
@@ -32,11 +32,11 @@ jobs:
               run: go vet ./...
 
             - name: Test
-              run: go test ./... -v
+              run: go test ./...
 
             - name: Bump version
               id: bump
-              uses: anothrNick/github-tag-action@v1
+              uses: anothrNick/github-tag-action@1.75.0
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
                   DEFAULT_BUMP: patch
@@ -60,10 +60,10 @@ jobs:
                   cache: true
 
             - name: Run GoReleaser
-              uses: goreleaser/goreleaser-action@v6
+              uses: goreleaser/goreleaser-action@v6.4.0
               with:
                   distribution: goreleaser
-                  version: latest
+                  version: '~> 2'
                   args: release --clean
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
