@@ -91,7 +91,7 @@ func (c *Client) Search(query string, limit int, facets map[string][]string) (*S
 		var parts []string
 		for key, vals := range facets {
 			for _, v := range vals {
-				parts = append(parts, fmt.Sprintf(`["%s":"%s"]`, key, v))
+				parts = append(parts, fmt.Sprintf(`["%s:%s"]`, key, v))
 			}
 		}
 		q.Set("facets", "["+strings.Join(parts, ",")+"]")
