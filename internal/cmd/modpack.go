@@ -23,8 +23,10 @@ var modpackInstallCmd = &cobra.Command{
 
 		cfg := ensureServerInitialized()
 
+		reinstall, _ := cmd.Flags().GetBool("reinstall")
+
 		c := modrinth.NewClient()
-		result, err := c.InstallModpack(slug)
+		result, err := c.InstallModpack(slug, reinstall)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			os.Exit(1)
@@ -40,9 +42,6 @@ var modpackInstallCmd = &cobra.Command{
 		if err := config.Save(cfg); err != nil {
 			fmt.Fprintf(os.Stderr, "Warning: failed to save config: %v\n", err)
 		}
-
-		fmt.Printf("Installed modpack: %s %s\n", result.Mod.Slug, result.Mod.VersionNumber)
-		fmt.Printf("Downloaded %d files\n", len(result.Files))
 	},
 }
 
@@ -69,6 +68,7 @@ var modpackListCmd = &cobra.Command{
 }
 
 func init() {
+	modpackInstallCmd.Flags().Bool("reinstall", false, "Re-download all files even if already present")
 	modpackCmd.AddCommand(modpackInstallCmd)
 	modpackCmd.AddCommand(modpackListCmd)
 	rootCmd.AddCommand(modpackCmd)

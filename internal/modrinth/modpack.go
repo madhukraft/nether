@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -30,7 +31,7 @@ type ModrinthIndexFile struct {
 	FileSize  int64             `json:"fileSize"`
 }
 
-func (c *Client) InstallModpack(input string) (*InstallResult, error) {
+func (c *Client) InstallModpack(input string, force bool) (*InstallResult, error) {
 	slug := parseSlug(input)
 
 	proj, err := c.GetProject(slug)
@@ -58,10 +59,10 @@ func (c *Client) InstallModpack(input string) (*InstallResult, error) {
 		return nil, fmt.Errorf("no .mrpack file found for %q", slug)
 	}
 
-	return c.installMrpack(proj.Slug, proj.ID, ver.ID, ver.VersionNumber, primaryFile)
+	return c.installMrpack(proj.Slug, proj.ID, ver.ID, ver.VersionNumber, primaryFile, force)
 }
 
-func (c *Client) installMrpack(slug, projectID, versionID, versionNumber string, file *VersionFile) (*InstallResult, error) {
+func (c *Client) installMrpack(slug, projectID, versionID, versionNumber string, file *VersionFile, force bool) (*InstallResult, error) {
 	mrpackPath := filepath.Join(".nether", file.Filename)
 	if err := os.MkdirAll(filepath.Dir(mrpackPath), 0755); err != nil {
 		return nil, fmt.Errorf("creating temp directory: %w", err)
@@ -101,30 +102,51 @@ func (c *Client) installMrpack(slug, projectID, versionID, versionNumber string,
 		}
 	}
 
+	bp := newBatchProgress(slug, len(serverFiles))
+	var downloaded, upToDate int
+	var totalBytes int64
+
 	for _, f := range serverFiles {
 		destPath := filepath.Join(".", f.Path)
 		if err := os.MkdirAll(filepath.Dir(destPath), 0755); err != nil {
 			return nil, fmt.Errorf("creating directory for %s: %w", f.Path, err)
 		}
 
-		downloaded := false
-		for _, url := range f.Downloads {
-			if err := downloadFile(url, destPath); err == nil {
-				downloaded = true
-				result.Files = append(result.Files, destPath)
+		if !force && fileMatches(destPath, f.Hashes) {
+			bp.skipFile()
+			upToDate++
+			result.Files = append(result.Files, destPath)
+			continue
+		}
 
-				if sha1Hex, ok := f.Hashes["sha1"]; ok {
-					if err := verifySha1(destPath, sha1Hex); err != nil {
-						os.Remove(destPath)
-						return nil, fmt.Errorf("checksum mismatch for %s: %w", f.Path, err)
-					}
-				}
+		bp.nextFile(filepath.Base(f.Path))
+
+		if len(f.Downloads) == 0 {
+			return nil, fmt.Errorf("no download URLs for %s", f.Path)
+		}
+
+		dlOK := false
+		for _, dlURL := range f.Downloads {
+			err := downloadModpackFile(dlURL, destPath, f.FileSize, bp)
+			if err == nil {
+				dlOK = true
 				break
 			}
 		}
-		if !downloaded {
+		if !dlOK {
 			return nil, fmt.Errorf("failed to download %s from any mirror", f.Path)
 		}
+
+		if sha1Hex, ok := f.Hashes["sha1"]; ok {
+			if err := verifySha1(destPath, sha1Hex); err != nil {
+				os.Remove(destPath)
+				return nil, fmt.Errorf("checksum mismatch for %s: %w", f.Path, err)
+			}
+		}
+
+		result.Files = append(result.Files, destPath)
+		downloaded++
+		totalBytes += f.FileSize
 	}
 
 	if err := extractOverrides(mrpackPath); err != nil {
@@ -132,8 +154,44 @@ func (c *Client) installMrpack(slug, projectID, versionID, versionNumber string,
 	}
 
 	os.Remove(mrpackPath)
+	bp.done(downloaded, upToDate, totalBytes)
 
 	return result, nil
+}
+
+func fileMatches(destPath string, hashes map[string]string) bool {
+	sha1Hex, ok := hashes["sha1"]
+	if !ok {
+		return false
+	}
+	if err := verifySha1(destPath, sha1Hex); err != nil {
+		return false
+	}
+	return true
+}
+
+func downloadModpackFile(url, destPath string, fileSize int64, bp *batchProgress) error {
+	resp, err := http.Get(url)
+	if err != nil {
+		return err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		resp.Body.Close()
+		return fmt.Errorf("HTTP %d", resp.StatusCode)
+	}
+
+	body := bp.wrapReader(resp.Body, fileSize)
+	defer body.Close()
+
+	out, err := os.Create(destPath)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	_, err = io.Copy(out, body)
+	return err
 }
 
 func readMrpackIndex(mrpackPath string) (*ModrinthIndex, error) {
