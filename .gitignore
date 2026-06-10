@@ -31,6 +31,9 @@ go.work.sum
 # goreleaser output
 dist
 
+# generated shell completions
+completions/
+
 # Editor/IDE
 # .idea/
 # .vscode/

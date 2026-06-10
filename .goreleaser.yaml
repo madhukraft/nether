@@ -2,6 +2,12 @@ version: 2
 
 project_name: nether
 
+before:
+    hooks:
+        - go run ./cmd/nether completion bash > completions/nether.bash
+        - go run ./cmd/nether completion zsh > completions/nether.zsh
+        - go run ./cmd/nether completion fish > completions/nether.fish
+
 env:
     - CGO_ENABLED=0
 
@@ -34,6 +40,7 @@ release:
 
         ```sh
         docker pull ghcr.io/madhukraft/nether:{{ .Tag }}
+        docker pull madhukraft/nether:{{ .Tag }}
         ```
 
 changelog:
@@ -42,6 +49,9 @@ changelog:
         exclude:
             - "^docs:"
             - "^test:"
+            - "^ci:"
+            - "^chore:"
+            - "^refactor:"
 
 dockers_v2:
     - images:
@@ -73,3 +83,10 @@ nfpms:
           - deb
           - rpm
           - archlinux
+      contents:
+          - src: completions/nether.bash
+            dst: /usr/share/bash-completion/completions/nether
+          - src: completions/nether.zsh
+            dst: /usr/share/zsh/vendor-completions/_nether
+          - src: completions/nether.fish
+            dst: /usr/share/fish/vendor-completions/nether.fish
