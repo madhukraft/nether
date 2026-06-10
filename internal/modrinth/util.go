@@ -2,7 +2,7 @@ package modrinth
 
 import "strings"
 
-func parseSlug(input string) string {
+func ParseSlug(input string) string {
 	baseURLs := []string{"https://modrinth.com/", "http://modrinth.com/", "modrinth.com/"}
 	for _, prefix := range baseURLs {
 		if strings.HasPrefix(input, prefix) {

@@ -126,9 +126,9 @@ func TestParseSlug(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
-			got := parseSlug(tt.input)
+			got := ParseSlug(tt.input)
 			if got != tt.want {
-				t.Errorf("parseSlug(%q) = %q, want %q", tt.input, got, tt.want)
+				t.Errorf("ParseSlug(%q) = %q, want %q", tt.input, got, tt.want)
 			}
 		})
 	}

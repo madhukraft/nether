@@ -28,15 +28,7 @@ var modsInstallCmd = &cobra.Command{
 		autoDeps, _ := cmd.Flags().GetBool("auto-deps")
 		reinstall, _ := cmd.Flags().GetBool("reinstall")
 
-		for _, prefix := range []string{"https://modrinth.com/", "http://modrinth.com/", "modrinth.com/"} {
-			if strings.HasPrefix(slug, prefix) {
-				path := strings.TrimPrefix(slug, prefix)
-				path = strings.TrimSuffix(path, "/")
-				parts := strings.Split(path, "/")
-				slug = parts[len(parts)-1]
-				break
-			}
-		}
+		slug = modrinth.ParseSlug(slug)
 
 		for _, m := range cfg.Mods.Installed {
 			if m.Slug == slug || m.ProjectID == slug {

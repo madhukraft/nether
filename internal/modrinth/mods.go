@@ -41,7 +41,7 @@ func mapServerTypeToLoader(serverType string) string {
 }
 
 func (c *Client) InstallMod(input, mcVersion, serverType string, autoDeps bool) (*InstallResult, error) {
-	slug := parseSlug(input)
+	slug := ParseSlug(input)
 
 	proj, err := c.GetProject(slug)
 	if err != nil {

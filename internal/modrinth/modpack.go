@@ -32,7 +32,7 @@ type ModrinthIndexFile struct {
 }
 
 func (c *Client) InstallModpack(input string, force bool) (*InstallResult, error) {
-	slug := parseSlug(input)
+	slug := ParseSlug(input)
 
 	proj, err := c.GetProject(slug)
 	if err != nil {
