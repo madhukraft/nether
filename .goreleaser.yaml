@@ -10,27 +10,34 @@ env:
     - CGO_ENABLED=0
 
 builds:
-    - main: ./cmd/nether
+    - id: unix
       binary: nether
       ldflags:
           - -s -w -X github.com/madhukraft/nether/internal/cmd.Version={{ .Version }}
       goos:
           - linux
           - darwin
-          - windows
       goarch:
           - amd64
           - arm64
+    - id: windows
+      binary: nether
+      ldflags:
+          - -s -w -X github.com/madhukraft/nether/internal/cmd.Version={{ .Version }}
+      goos:
+          - windows
+      goarch:
+          - amd64
 
 archives:
     - formats: ["binary"]
       name_template: "{{ .ProjectName }}-{{ .Os }}-{{ .Arch }}"
-      goos:
-          - linux
-          - darwin
-    - formats: ["zip"]
-      name_template: "{{ .ProjectName }}-{{ .Os }}-{{ .Arch }}"
-      goos:
+      builds:
+          - unix
+    - id: windows
+      formats: ["zip"]
+      name_template: "{{ .ProjectName }}-windows-{{ .Arch }}"
+      builds:
           - windows
 
 checksum:
@@ -102,8 +109,8 @@ scoops:
       description: "Nether - Minecraft server setup tool"
       homepage: "https://github.com/madhukraft/nether"
       license: "MIT"
-      goarch:
-          - amd64
+      ids:
+          - windows
       skip_upload: false
 
 nfpms:
