@@ -9,7 +9,7 @@ Minecraft server setup tool. Downloads the server jar and provisions its own bun
 curl -fsSL https://raw.githubusercontent.com/madhukraft/nether/main/install.sh | sh
 ```
 
-**macOS (Homebrew):**
+**Linux / macOS (Homebrew):**
 ```sh
 brew install madhukraft/tap/nether
 ```
