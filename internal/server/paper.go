@@ -3,9 +3,7 @@ package server
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
-	"os"
 )
 
 const paperAPI = "https://api.papermc.io/v2/projects/paper"
@@ -90,20 +88,7 @@ func DownloadPaper(version string) error {
     }
 
     url := fmt.Sprintf("%s/versions/%s/builds/%d/downloads/%s", paperAPI, version, build, jarName)
-	fmt.Printf("Downloading Paper server (build %d)...\n", build)
+	label := fmt.Sprintf("Paper build %d", build)
 
-    resp, err := http.Get(url)
-    if err != nil {
-        return err
-    }
-    defer resp.Body.Close()
-
-    out, err := os.Create("server.jar")
-    if err != nil {
-        return err
-    }
-    defer out.Close()
-
-    _, err = io.Copy(out, resp.Body)
-    return err
+    return downloadFile(url, "server.jar", label)
 }
