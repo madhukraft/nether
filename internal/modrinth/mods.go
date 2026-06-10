@@ -76,7 +76,7 @@ func (c *Client) InstallMod(input, mcVersion, serverType string, autoDeps bool) 
 
 	ver := &versions[0]
 
-	primaryFile := findPrimaryFile(ver.Files)
+	primaryFile := FindPrimaryFile(ver.Files)
 	if primaryFile == nil {
 		return nil, fmt.Errorf("no downloadable file found for %s %s", slug, ver.VersionNumber)
 	}
@@ -153,7 +153,7 @@ func (c *Client) installDependency(projectID, mcVersion, loader string) (*Instal
 	})
 
 	ver := &versions[0]
-	primaryFile := findPrimaryFile(ver.Files)
+	primaryFile := FindPrimaryFile(ver.Files)
 	if primaryFile == nil {
 		return nil, nil
 	}
@@ -196,7 +196,7 @@ func (c *Client) installDependency(projectID, mcVersion, loader string) (*Instal
 	return result, nil
 }
 
-func findPrimaryFile(files []VersionFile) *VersionFile {
+func FindPrimaryFile(files []VersionFile) *VersionFile {
 	for _, f := range files {
 		if f.Primary {
 			return &f

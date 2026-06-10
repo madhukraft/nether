@@ -4,8 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/url"
 	"os"
+
+	"github.com/madhukraft/nether/internal/modrinth"
 )
 
 const fabricMetaURL = "https://meta.fabricmc.net/v2"
@@ -46,49 +47,23 @@ func fetchFabricVersions(endpoint string) ([]fabricVersion, error) {
 }
 
 func downloadFabricAPI(mcVersion string) error {
-	v := url.Values{}
-	v.Set("game_versions", `["`+mcVersion+`"]`)
-	v.Set("loaders", `["fabric"]`)
-	u := "https://api.modrinth.com/v2/project/fabric-api/version?" + v.Encode()
-
-	resp, err := http.Get(u)
+	c := modrinth.NewClient()
+	versions, err := c.GetVersions("fabric-api", []string{"fabric"}, []string{mcVersion})
 	if err != nil {
 		return fmt.Errorf("failed to fetch Fabric API version: %w", err)
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		if resp.StatusCode == http.StatusNotFound {
-			return fmt.Errorf("no Fabric API version found for Minecraft %s", mcVersion)
-		}
-		return fmt.Errorf("unexpected status %d from Modrinth API", resp.StatusCode)
-	}
-
-	var versions []struct {
-		Files []struct {
-			URL      string `json:"url"`
-			Filename string `json:"filename"`
-			Primary  bool   `json:"primary"`
-		} `json:"files"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&versions); err != nil {
-		return fmt.Errorf("failed to parse Modrinth response: %w", err)
-	}
 
 	if len(versions) == 0 {
-		return fmt.Errorf("no Fabric API versions available for Minecraft %s", mcVersion)
+		return fmt.Errorf("no Fabric API version found for Minecraft %s", mcVersion)
 	}
 
-	for _, v := range versions {
-		for _, f := range v.Files {
-			if f.Primary {
-	return downloadFile(f.URL, "mods/"+f.Filename, "Fabric API jar")
-			}
-		}
+	ver := &versions[0]
+	primaryFile := modrinth.FindPrimaryFile(ver.Files)
+	if primaryFile == nil {
+		return fmt.Errorf("no primary file found for Fabric API version %s", ver.VersionNumber)
 	}
 
-	f := versions[0].Files[0]
-	return downloadFile(f.URL, "mods/"+f.Filename, "Fabric API jar")
+	return downloadFile(primaryFile.URL, "mods/"+primaryFile.Filename, "Fabric API jar")
 }
 
 func DownloadFabric(mcVersion string) error {

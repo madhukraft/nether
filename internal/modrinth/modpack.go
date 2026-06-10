@@ -54,7 +54,7 @@ func (c *Client) InstallModpack(input string, force bool) (*InstallResult, error
 
 	ver := &versions[0]
 
-	primaryFile := findPrimaryFile(ver.Files)
+	primaryFile := FindPrimaryFile(ver.Files)
 	if primaryFile == nil || !strings.HasSuffix(primaryFile.Filename, ".mrpack") {
 		return nil, fmt.Errorf("no .mrpack file found for %q", slug)
 	}
