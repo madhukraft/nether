@@ -87,6 +87,7 @@ jobs:
                   cache: true
 
             - name: Run GoReleaser
+              id: goreleaser
               uses: goreleaser/goreleaser-action@v6.4.0
               with:
                   distribution: goreleaser
@@ -95,3 +96,7 @@ jobs:
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
                   TAP_GITHUB_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
+
+            - name: Cleanup orphan tag
+              if: ${{ failure() || cancelled() }}
+              run: git push --delete origin ${{ needs.tag.outputs.tag }}
