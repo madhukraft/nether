@@ -51,6 +51,20 @@ docker run --rm -it -v .:/data ghcr.io/madhukraft/nether create
 
 Server types: `paper`, `vanilla`, `fabric`, `neoforge`, `forge`
 
+Manage mods from Modrinth:
+```
+nether mods search <query>              # search for mods
+nether mods install <slug|url>          # install a mod with dependency resolution
+nether mods remove <name>               # remove an installed mod
+nether mods list                        # list installed mods
+```
+
+Install modpacks:
+```
+nether modpack install <slug|url>       # install a modpack with all dependencies
+nether modpack list                     # list installed modpacks
+```
+
 ## How it works
 
 Nether downloads the server jar and provisions its own bundled Java, fully isolated from your system. It then generates run scripts, `server.properties`, `eula.txt`, and JVM args in a self-contained directory. Nothing is installed globally and your system's Java installation is never touched.
