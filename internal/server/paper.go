@@ -22,14 +22,6 @@ type paperBuildsResponse struct {
     Builds []paperBuild `json:"builds"`
 }
 
-type paperBuildResponse struct {
-	Downloads struct {
-		Application struct {
-			Name string `json:"name"`
-		} `json:"application"`
-	} `json:"downloads"`
-}
-
 func getLatestPaperBuild(version string) (int, string, error) {
     url := fmt.Sprintf("%s/versions/%s/builds", paperAPI, version)
     resp, err := http.Get(url)
@@ -62,22 +54,6 @@ func getLatestPaperBuild(version string) (int, string, error) {
     // fall back to latest if no stable found
     b := data.Builds[len(data.Builds)-1]
     return b.Build, b.Downloads.Application.Name, nil
-}
-
-func getJarName(version string, build int) (string, error) {
-	url := fmt.Sprintf("%s/versions/%s/builds/%d", paperAPI, version, build)
-	resp, err := http.Get(url)
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-
-	var data paperBuildResponse
-	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
-		return "", err
-	}
-
-	return data.Downloads.Application.Name, nil
 }
 
 func DownloadPaper(version string) error {
