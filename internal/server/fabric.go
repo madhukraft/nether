@@ -46,27 +46,6 @@ func fetchFabricVersions(endpoint string) ([]fabricVersion, error) {
 	return versions, nil
 }
 
-func downloadFile(url, dest string) error {
-	resp, err := http.Get(url)
-	if err != nil {
-		return fmt.Errorf("failed to download: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("unexpected status %d", resp.StatusCode)
-	}
-
-	out, err := os.Create(dest)
-	if err != nil {
-		return err
-	}
-	defer out.Close()
-
-	_, err = io.Copy(out, resp.Body)
-	return err
-}
-
 func downloadFabricAPI(mcVersion string) error {
 	v := url.Values{}
 	v.Set("game_versions", `["`+mcVersion+`"]`)
@@ -104,13 +83,13 @@ func downloadFabricAPI(mcVersion string) error {
 	for _, v := range versions {
 		for _, f := range v.Files {
 			if f.Primary {
-				return downloadFile(f.URL, "mods/"+f.Filename)
+	return downloadFile(f.URL, "mods/"+f.Filename, "Fabric API jar")
 			}
 		}
 	}
 
 	f := versions[0].Files[0]
-	return downloadFile(f.URL, "mods/"+f.Filename)
+	return downloadFile(f.URL, "mods/"+f.Filename, "Fabric API jar")
 }
 
 func DownloadFabric(mcVersion string) error {
