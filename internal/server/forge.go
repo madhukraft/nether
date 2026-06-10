@@ -3,7 +3,6 @@ package server
 import (
 	"encoding/xml"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"os/exec"
@@ -100,28 +99,9 @@ func DownloadForge(mcVersion string) (string, error) {
 	jarURL := fmt.Sprintf("%s/%s/forge-%s-installer.jar", forgeMavenURL, fgVersion, fgVersion)
 	installerFile := fmt.Sprintf("forge-%s-installer.jar", fgVersion)
 
-	fmt.Printf("Downloading Forge %s...\n", fgVersion)
-
-	resp, err := http.Get(jarURL)
-	if err != nil {
-		return "", fmt.Errorf("failed to download Forge installer: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("unexpected status %d from Forge maven", resp.StatusCode)
-	}
-
-	out, err := os.Create(installerFile)
-	if err != nil {
+	if err := downloadFile(jarURL, installerFile, "Forge "+fgVersion); err != nil {
 		return "", err
 	}
-	_, err = io.Copy(out, resp.Body)
-	out.Close()
-	if err != nil {
-		return "", err
-	}
-
 	return installerFile, nil
 }
 

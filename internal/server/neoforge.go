@@ -3,7 +3,6 @@ package server
 import (
 	"encoding/xml"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"os/exec"
@@ -124,28 +123,9 @@ func DownloadNeoForge(mcVersion string) (string, error) {
 	jarURL := fmt.Sprintf("%s/%s/neoforge-%s-installer.jar", neoforgeMavenURL, nfVersion, nfVersion)
 	installerFile := fmt.Sprintf("neoforge-%s-installer.jar", nfVersion)
 
-	fmt.Printf("Downloading NeoForge %s...\n", nfVersion)
-
-	resp, err := http.Get(jarURL)
-	if err != nil {
-		return "", fmt.Errorf("failed to download NeoForge installer: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("unexpected status %d from NeoForge maven", resp.StatusCode)
-	}
-
-	out, err := os.Create(installerFile)
-	if err != nil {
+	if err := downloadFile(jarURL, installerFile, "NeoForge "+nfVersion); err != nil {
 		return "", err
 	}
-	_, err = io.Copy(out, resp.Body)
-	out.Close()
-	if err != nil {
-		return "", err
-	}
-
 	return installerFile, nil
 }
 
