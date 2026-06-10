@@ -2,7 +2,8 @@
 set -eu
 
 REPO="madhukraft/nether"
-BIN_DIR="/usr/local/bin"
+BIN_DIR="$HOME/.local/bin"
+BIN_PATH="$BIN_DIR/nether"
 
 case "$(uname -s)" in
     Linux)  OS="linux" ;;
@@ -31,13 +32,24 @@ else
 fi
 
 chmod +x "$TMP_FILE"
+NEW_VER="$("$TMP_FILE" -V 2>/dev/null || echo "unknown")"
 
-if [ -w "$BIN_DIR" ]; then
-    mv "$TMP_FILE" "$BIN_DIR/nether"
-else
-    echo "sudo required to install to $BIN_DIR"
-    sudo mv "$TMP_FILE" "$BIN_DIR/nether"
+if [ -f "$BIN_PATH" ]; then
+    OLD_VER="$("$BIN_PATH" -V 2>/dev/null || echo "")"
+    echo "Existing nether found at $BIN_PATH"
+    if [ -n "$OLD_VER" ]; then
+        echo "  Current version: $OLD_VER"
+    fi
+    echo "  New version:     $NEW_VER"
+    printf "Overwrite? [y/N]: "
+    read -r response < /dev/tty || true
+    case "$response" in
+        y|Y) ;;
+        *) echo "Aborting."; rm -f "$TMP_FILE"; exit 1 ;;
+    esac
 fi
 
-echo "Installed to $BIN_DIR/nether"
+mkdir -p "$BIN_DIR"
+mv "$TMP_FILE" "$BIN_PATH"
+echo "Installed $NEW_VER to $BIN_PATH"
 echo "Run 'nether create' to get started."
