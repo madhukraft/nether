@@ -81,6 +81,12 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: madhukraft
+          password: ${{ secrets.docker_pat }}
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
@@ -96,6 +102,8 @@ jobs:
           tags: |
             ghcr.io/${{ github.repository }}:${{ needs.tag.outputs.tag }}
             ghcr.io/${{ github.repository }}:latest
+            madhukraft/nether:${{ needs.tag.outputs.tag }}
+            madhukraft/nether:latest
           build-args: |
             VERSION=${{ needs.tag.outputs.tag }}
           cache-from: type=gha
