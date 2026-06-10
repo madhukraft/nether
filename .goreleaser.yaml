@@ -73,6 +73,32 @@ dockers_v2:
           "org.opencontainers.image.revision": "{{ .FullCommit }}"
           "org.opencontainers.image.licenses": "MIT"
 
+homebrew_casks:
+    - name: nether
+      repository:
+          owner: madhukraft
+          name: homebrew-tap
+          token: "{{ .Env.TAP_GITHUB_TOKEN }}"
+      url:
+          verified: github.com/madhukraft/nether
+      description: "Nether - Minecraft server setup tool"
+      homepage: "https://github.com/madhukraft/nether"
+      license: "MIT"
+      binaries:
+          - nether
+      skip_upload: true
+
+scoops:
+    - name: nether
+      repository:
+          owner: madhukraft
+          name: scoop-bucket
+          token: "{{ .Env.TAP_GITHUB_TOKEN }}"
+      description: "Nether - Minecraft server setup tool"
+      homepage: "https://github.com/madhukraft/nether"
+      license: "MIT"
+      skip_upload: true
+
 nfpms:
     - package_name: nether
       homepage: "https://github.com/madhukraft/nether"
