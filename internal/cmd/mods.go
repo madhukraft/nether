@@ -16,9 +16,9 @@ var modsCmd = &cobra.Command{
 	Short: "Manage server mods via Modrinth",
 }
 
-var modsAddCmd = &cobra.Command{
-	Use:   "add [mod]",
-	Short: "Add a mod from Modrinth (slug or URL)",
+var modsInstallCmd = &cobra.Command{
+	Use:   "install [mod]",
+	Short: "Install a mod from Modrinth (slug or URL)",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		slug := args[0]
@@ -222,9 +222,9 @@ func humanNumber(n int64) string {
 
 
 func init() {
-	modsAddCmd.Flags().Bool("auto-deps", true, "Automatically install required and optional dependencies")
-	modsAddCmd.Flags().Bool("reinstall", false, "Reinstall mod even if already installed")
-	modsCmd.AddCommand(modsAddCmd)
+	modsInstallCmd.Flags().Bool("auto-deps", true, "Automatically install required and optional dependencies")
+	modsInstallCmd.Flags().Bool("reinstall", false, "Reinstall mod even if already installed")
+	modsCmd.AddCommand(modsInstallCmd)
 	modsCmd.AddCommand(modsRemoveCmd)
 	modsCmd.AddCommand(modsListCmd)
 	modsCmd.AddCommand(modsSearchCmd)
