@@ -1,13 +1,8 @@
 package server
 
 import (
-	"encoding/xml"
 	"fmt"
-	"net/http"
-	"os"
-	"os/exec"
 	"sort"
-	"strconv"
 	"strings"
 )
 
@@ -28,18 +23,8 @@ func parseForgeVersions(versions []string) []forgeVersion {
 		}
 		mcVer := v[:idx]
 		buildStr := v[idx+1:]
-		parts := strings.Split(buildStr, ".")
-		var nums []int
-		valid := true
-		for _, p := range parts {
-			n, err := strconv.Atoi(p)
-			if err != nil {
-				valid = false
-				break
-			}
-			nums = append(nums, n)
-		}
-		if !valid || len(nums) == 0 {
+		nums, ok := parseVersionParts(buildStr)
+		if !ok {
 			continue
 		}
 		out = append(out, forgeVersion{mcVersion: mcVer, build: buildStr, parts: nums})
@@ -48,19 +33,9 @@ func parseForgeVersions(versions []string) []forgeVersion {
 }
 
 func getForgeVersionForMC(mcVersion string) (string, error) {
-	resp, err := http.Get(forgeMavenURL + "/maven-metadata.xml")
+	meta, err := fetchMavenMetadata(forgeMavenURL)
 	if err != nil {
-		return "", fmt.Errorf("failed to fetch Forge metadata: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("unexpected status %d from Forge maven", resp.StatusCode)
-	}
-
-	var meta mavenMetadata
-	if err := xml.NewDecoder(resp.Body).Decode(&meta); err != nil {
-		return "", fmt.Errorf("failed to parse Forge metadata: %w", err)
+		return "", fmt.Errorf("Forge: %w", err)
 	}
 
 	parsed := parseForgeVersions(meta.Versioning.Versions)
@@ -106,29 +81,5 @@ func DownloadForge(mcVersion string) (string, error) {
 }
 
 func InstallForge(installerFile string) error {
-	fmt.Println("Running Forge installer...")
-	javaPath := "java"
-	if bundledJavaExists() {
-		javaPath = bundledJavaPath()
-	}
-
-	cmd := exec.Command(javaPath, "-jar", installerFile, "--installServer")
-	cmd.Stdout = nil
-	cmd.Stderr = nil
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("Forge installer failed: %w", err)
-	}
-
-	if err := os.Remove(installerFile); err != nil {
-		return fmt.Errorf("failed to remove installer: %w", err)
-	}
-
-	if err := patchScriptJava("run.sh", 0755); err != nil {
-		return fmt.Errorf("failed to fix run script: %w", err)
-	}
-	if err := patchScriptJava("run.bat", 0644); err != nil {
-		return fmt.Errorf("failed to fix run.bat: %w", err)
-	}
-
-	return nil
+	return installForgeLike(installerFile, "Forge")
 }

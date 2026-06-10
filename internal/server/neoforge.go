@@ -1,28 +1,14 @@
 package server
 
 import (
-	"encoding/xml"
 	"fmt"
-	"net/http"
 	"os"
-	"os/exec"
 	"sort"
 	"strconv"
 	"strings"
 )
 
 const neoforgeMavenURL = "https://maven.neoforged.net/releases/net/neoforged/neoforge"
-
-type mavenMetadata struct {
-	XMLName    xml.Name `xml:"metadata"`
-	GroupID    string   `xml:"groupId"`
-	ArtifactID string   `xml:"artifactId"`
-	Versioning struct {
-		Latest  string   `xml:"latest"`
-		Release string   `xml:"release"`
-		Versions []string `xml:"versions>version"`
-	} `xml:"versioning"`
-}
 
 type neoForgeVersion struct {
 	mcMinor int
@@ -33,7 +19,6 @@ type neoForgeVersion struct {
 func parseNeoForgeVersions(versions []string) []neoForgeVersion {
 	var out []neoForgeVersion
 	for _, v := range versions {
-		// Skip beta/snapshot versions for clean auto-detection
 		if strings.Contains(v, "beta") || strings.Contains(v, "craftmine") {
 			continue
 		}
@@ -45,17 +30,8 @@ func parseNeoForgeVersions(versions []string) []neoForgeVersion {
 		if err != nil {
 			continue
 		}
-		var nums []int
-		valid := true
-		for _, p := range parts {
-			n, err := strconv.Atoi(p)
-			if err != nil {
-				valid = false
-				break
-			}
-			nums = append(nums, n)
-		}
-		if !valid {
+		nums, ok := parseVersionParts(v)
+		if !ok {
 			continue
 		}
 		out = append(out, neoForgeVersion{mcMinor: mcMinor, full: v, parts: nums})
@@ -73,19 +49,9 @@ func getNeoForgeVersionForMC(mcVersion string) (string, error) {
 		return "", fmt.Errorf("invalid Minecraft version: %s", mcVersion)
 	}
 
-	resp, err := http.Get(neoforgeMavenURL + "/maven-metadata.xml")
+	meta, err := fetchMavenMetadata(neoforgeMavenURL)
 	if err != nil {
-		return "", fmt.Errorf("failed to fetch NeoForge metadata: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("unexpected status %d from NeoForge maven", resp.StatusCode)
-	}
-
-	var meta mavenMetadata
-	if err := xml.NewDecoder(resp.Body).Decode(&meta); err != nil {
-		return "", fmt.Errorf("failed to parse NeoForge metadata: %w", err)
+		return "", fmt.Errorf("NeoForge: %w", err)
 	}
 
 	parsed := parseNeoForgeVersions(meta.Versioning.Versions)
@@ -130,31 +96,7 @@ func DownloadNeoForge(mcVersion string) (string, error) {
 }
 
 func InstallNeoForge(installerFile string) error {
-	fmt.Println("Running NeoForge installer...")
-	javaPath := "java"
-	if bundledJavaExists() {
-		javaPath = bundledJavaPath()
-	}
-
-	cmd := exec.Command(javaPath, "-jar", installerFile, "--installServer")
-	cmd.Stdout = nil
-	cmd.Stderr = nil
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("NeoForge installer failed: %w", err)
-	}
-
-	if err := os.Remove(installerFile); err != nil {
-		return fmt.Errorf("failed to remove installer: %w", err)
-	}
-
-	if err := patchScriptJava("run.sh", 0755); err != nil {
-		return fmt.Errorf("failed to fix run script: %w", err)
-	}
-	if err := patchScriptJava("run.bat", 0644); err != nil {
-		return fmt.Errorf("failed to fix run.bat: %w", err)
-	}
-
-	return nil
+	return installForgeLike(installerFile, "NeoForge")
 }
 
 func WriteUserJVMArgs(minRAM, maxRAM string) error {
