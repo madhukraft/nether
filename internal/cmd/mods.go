@@ -148,35 +148,37 @@ var modsListCmd = &cobra.Command{
 	},
 }
 
-var modsSearchCmd = &cobra.Command{
-	Use:   "search [query]",
-	Short: "Search mods on Modrinth",
-	Args:  cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
-		c := modrinth.NewClient()
-		facets := map[string][]string{"project_type": {"mod"}}
-		results, err := c.Search(args[0], 10, facets)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-			os.Exit(1)
-		}
-
-		if len(results.Hits) == 0 {
-			fmt.Println("No results found")
-			return
-		}
-
-		for _, hit := range results.Hits {
-			loaders := ""
-			if len(hit.Loaders) > 0 {
-				loaders = " [" + strings.Join(hit.Loaders, ", ") + "]"
+func searchCmd(projectType string) *cobra.Command {
+	return &cobra.Command{
+		Use:   "search [query]",
+		Short: fmt.Sprintf("Search %ss on Modrinth", projectType),
+		Args:  cobra.ExactArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+			c := modrinth.NewClient()
+			facets := map[string][]string{"project_type": {projectType}}
+			results, err := c.Search(args[0], 10, facets)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+				os.Exit(1)
 			}
-			fmt.Printf("  %s - %s%s\n", hit.Slug, hit.Title, loaders)
-			fmt.Printf("    %s\n", hit.Description)
-			fmt.Printf("    Downloads: %-9s | Follows: %s\n", humanNumber(hit.Downloads), humanNumber(hit.Follows))
-			fmt.Println()
-		}
-	},
+
+			if len(results.Hits) == 0 {
+				fmt.Println("No results found")
+				return
+			}
+
+			for _, hit := range results.Hits {
+				loaders := ""
+				if len(hit.Loaders) > 0 {
+					loaders = " [" + strings.Join(hit.Loaders, ", ") + "]"
+				}
+				fmt.Printf("  %s - %s%s\n", hit.Slug, hit.Title, loaders)
+				fmt.Printf("    %s\n", hit.Description)
+				fmt.Printf("    Downloads: %-9s | Follows: %s\n", humanNumber(hit.Downloads), humanNumber(hit.Follows))
+				fmt.Println()
+			}
+		},
+	}
 }
 
 func humanNumber(n int64) string {
@@ -197,6 +199,6 @@ func init() {
 	modsCmd.AddCommand(modsInstallCmd)
 	modsCmd.AddCommand(modsRemoveCmd)
 	modsCmd.AddCommand(modsListCmd)
-	modsCmd.AddCommand(modsSearchCmd)
+	modsCmd.AddCommand(searchCmd("mod"))
 	rootCmd.AddCommand(modsCmd)
 }

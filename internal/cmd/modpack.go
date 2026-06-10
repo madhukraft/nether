@@ -89,5 +89,6 @@ func init() {
 	modpackInstallCmd.Flags().Bool("reinstall", false, "Re-download all files even if already present")
 	modpackCmd.AddCommand(modpackInstallCmd)
 	modpackCmd.AddCommand(modpackListCmd)
+	modpackCmd.AddCommand(searchCmd("modpack"))
 	rootCmd.AddCommand(modpackCmd)
 }
