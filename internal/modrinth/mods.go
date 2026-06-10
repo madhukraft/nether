@@ -242,17 +242,5 @@ func FindInstalledMod(slug string, installed []InstalledMod) *InstalledMod {
 	return nil
 }
 
-func RemoveMod(slug string, installed []InstalledMod) ([]InstalledMod, []string) {
-	var remaining []InstalledMod
-	var removedFiles []string
-	for _, m := range installed {
-		if m.Slug == slug || m.ProjectID == slug {
-			removedFiles = append(removedFiles, filepath.Join("mods", m.Slug+"-*.jar"))
-		} else {
-			remaining = append(remaining, m)
-		}
-	}
-	return remaining, removedFiles
-}
 
 
