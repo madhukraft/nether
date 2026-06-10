@@ -7,7 +7,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
-	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -136,7 +135,6 @@ func GetJavaVersionFromJar(jarPath string) (int, error) {
 
 func DownloadJava(mcVersion string, customVer int) error {
 	javaVer := GetJavaVersionForMinecraft(mcVersion)
-	// fmt.Printf("Detected Minecraft version %s requires Java %d\n", mcVersion, javaVer)
 
 	if customVer > 0 {
 		javaVer = customVer
@@ -147,45 +145,19 @@ func DownloadJava(mcVersion string, customVer int) error {
 
 	osVal := getAdoptiumOS()
 	archVal := getAdoptiumArch()
+	verStr := strconv.Itoa(javaVer)
 
-	// Attempt to download JRE first
-	url := fmt.Sprintf("https://api.adoptium.net/v3/binary/latest/%d/ga/%s/%s/jre/hotspot/normal/eclipse", javaVer, osVal, archVal)
-	resp, err := http.Get(url)
+	jreURL := fmt.Sprintf("https://api.adoptium.net/v3/binary/latest/%s/ga/%s/%s/jre/hotspot/normal/eclipse", verStr, osVal, archVal)
+	jdkURL := fmt.Sprintf("https://api.adoptium.net/v3/binary/latest/%s/ga/%s/%s/jdk/hotspot/normal/eclipse", verStr, osVal, archVal)
+
+	tmpFile, err := downloadFileToTemp(jreURL, "Java "+verStr+" JRE")
 	if err != nil {
-		return fmt.Errorf("failed to fetch JRE from Adoptium API: %w", err)
-	}
-
-	// Fallback to JDK if JRE is not found
-	if resp.StatusCode == http.StatusNotFound {
-		resp.Body.Close()
-		url = fmt.Sprintf("https://api.adoptium.net/v3/binary/latest/%d/ga/%s/%s/jdk/hotspot/normal/eclipse", javaVer, osVal, archVal)
-		resp, err = http.Get(url)
+		tmpFile, err = downloadFileToTemp(jdkURL, "Java "+verStr+" JDK")
 		if err != nil {
-			return fmt.Errorf("failed to fetch JDK from Adoptium API: %w", err)
+			return fmt.Errorf("failed to download Java: %w", err)
 		}
 	}
-
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("failed to download Java: HTTP %d", resp.StatusCode)
-	}
-
-	tempFile := "java_download.tmp"
-	out, err := os.Create(tempFile)
-	if err != nil {
-		return fmt.Errorf("failed to create temporary download file: %w", err)
-	}
-	defer func() {
-		out.Close()
-		os.Remove(tempFile)
-	}()
-
-	_, err = io.Copy(out, resp.Body)
-	if err != nil {
-		return fmt.Errorf("failed to write Java download: %w", err)
-	}
-	out.Close()
+	defer os.Remove(tmpFile)
 
 	// Clear existing java directory
 	if err := os.RemoveAll("java"); err != nil {
@@ -196,18 +168,18 @@ func DownloadJava(mcVersion string, customVer int) error {
 		return fmt.Errorf("failed to create java directory: %w", err)
 	}
 
-	archiveType, err := detectArchiveType(tempFile)
+	archiveType, err := detectArchiveType(tmpFile)
 	if err != nil {
 		return fmt.Errorf("failed to detect archive type: %w", err)
 	}
 
 	fmt.Println("Installing Java...")
 	if archiveType == "tar.gz" {
-		if err := extractTarGz(tempFile, "java"); err != nil {
+		if err := extractTarGz(tmpFile, "java"); err != nil {
 			return fmt.Errorf("failed to extract tar.gz: %w", err)
 		}
 	} else if archiveType == "zip" {
-		if err := extractZip(tempFile, "java"); err != nil {
+		if err := extractZip(tmpFile, "java"); err != nil {
 			return fmt.Errorf("failed to extract zip: %w", err)
 		}
 	}

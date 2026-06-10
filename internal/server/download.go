@@ -1,6 +1,7 @@
 package server
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -8,6 +9,23 @@ import (
 
 	"github.com/madhukraft/nether/internal/ui"
 )
+
+type httpError struct {
+	StatusCode int
+	URL        string
+}
+
+func (e *httpError) Error() string {
+	return fmt.Sprintf("HTTP %d from %s", e.StatusCode, e.URL)
+}
+
+func isNotFound(err error) bool {
+	var he *httpError
+	if ok := errors.As(err, &he); ok {
+		return he.StatusCode == http.StatusNotFound
+	}
+	return false
+}
 
 // downloadFile downloads url to destPath with a progress indicator.
 // If label is empty, destPath is used as the progress label.
@@ -19,7 +37,7 @@ func downloadFile(url, destPath, label string) error {
 
 	if resp.StatusCode != http.StatusOK {
 		resp.Body.Close()
-		return fmt.Errorf("unexpected status %d", resp.StatusCode)
+		return &httpError{StatusCode: resp.StatusCode, URL: url}
 	}
 
 	if label == "" {
@@ -62,7 +80,7 @@ func downloadFileToTemp(url, label string) (string, error) {
 		resp.Body.Close()
 		tmpFile.Close()
 		os.Remove(tmpPath)
-		return "", fmt.Errorf("unexpected status %d", resp.StatusCode)
+		return "", &httpError{StatusCode: resp.StatusCode, URL: url}
 	}
 
 	body := ui.NewProgressReader(resp.Body, resp.ContentLength, label)

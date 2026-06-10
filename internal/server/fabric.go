@@ -3,7 +3,6 @@ package server
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -113,28 +112,11 @@ func DownloadFabric(mcVersion string) error {
 
 	jarURL := fmt.Sprintf("%s/versions/loader/%s/%s/%s/server/jar", fabricMetaURL, mcVersion, loaderVer, installerVer)
 
-	fmt.Printf("Downloading Fabric server (loader %s)...\n", loaderVer)
-
-	resp, err := http.Get(jarURL)
-	if err != nil {
-		return fmt.Errorf("failed to download Fabric server: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode == http.StatusNotFound {
-		return fmt.Errorf("Minecraft version %s is not supported by Fabric", mcVersion)
-	}
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("unexpected status %d from Fabric meta API", resp.StatusCode)
-	}
-
-	out, err := os.Create("server.jar")
-	if err != nil {
-		return err
-	}
-	defer out.Close()
-
-	if _, err := io.Copy(out, resp.Body); err != nil {
+	label := fmt.Sprintf("Fabric loader %s", loaderVer)
+	if err := downloadFile(jarURL, "server.jar", label); err != nil {
+		if isNotFound(err) {
+			return fmt.Errorf("Minecraft version %s is not supported by Fabric", mcVersion)
+		}
 		return err
 	}
 
