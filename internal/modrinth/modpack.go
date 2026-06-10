@@ -233,38 +233,44 @@ func extractOverrides(mrpackPath string) error {
 	defer r.Close()
 
 	for _, f := range r.File {
-		if strings.HasPrefix(f.Name, "overrides/") {
-			relPath := strings.TrimPrefix(f.Name, "overrides/")
-			if relPath == "" {
-				continue
-			}
+		if !strings.HasPrefix(f.Name, "overrides/") {
+			continue
+		}
+		relPath := strings.TrimPrefix(f.Name, "overrides/")
+		if relPath == "" {
+			continue
+		}
 
-			destPath := filepath.Join(".", relPath)
+		destPath := filepath.Join(".", relPath)
 
-			if f.FileInfo().IsDir() {
-				os.MkdirAll(destPath, 0755)
-				continue
-			}
+		if f.FileInfo().IsDir() {
+			os.MkdirAll(destPath, 0755)
+			continue
+		}
 
-			os.MkdirAll(filepath.Dir(destPath), 0755)
+		os.MkdirAll(filepath.Dir(destPath), 0755)
 
-			rc, err := f.Open()
-			if err != nil {
-				return fmt.Errorf("opening %s: %w", f.Name, err)
-			}
+		if _, err := os.Stat(destPath); err == nil {
+			fmt.Fprintf(os.Stderr, "  override already exists, skipping %s\n", relPath)
+			continue
+		}
 
-			out, err := os.Create(destPath)
-			if err != nil {
-				rc.Close()
-				return fmt.Errorf("creating %s: %w", destPath, err)
-			}
+		rc, err := f.Open()
+		if err != nil {
+			return fmt.Errorf("opening %s: %w", f.Name, err)
+		}
 
-			_, err = io.Copy(out, rc)
+		out, err := os.Create(destPath)
+		if err != nil {
 			rc.Close()
-			out.Close()
-			if err != nil {
-				return fmt.Errorf("writing %s: %w", destPath, err)
-			}
+			return fmt.Errorf("creating %s: %w", destPath, err)
+		}
+
+		_, err = io.Copy(out, rc)
+		rc.Close()
+		out.Close()
+		if err != nil {
+			return fmt.Errorf("writing %s: %w", destPath, err)
 		}
 	}
 
