@@ -9,7 +9,7 @@ Minecraft server setup tool. Downloads the server jar and provisions its own bun
 curl -fsSL https://raw.githubusercontent.com/madhukraft/nether/main/install.sh | sh
 ```
 
-**macOS (Homebrew):**
+**Linux / macOS (Homebrew):**
 ```sh
 brew install madhukraft/tap/nether
 ```
@@ -27,15 +27,9 @@ scoop install madhukraft/nether
 
 Or download the binary for your OS from [GitHub Releases](https://github.com/madhukraft/nether/releases) (Linux, macOS, Windows, amd64 and arm64).
 
-Or with Go:
-```
-go install github.com/madhukraft/nether/cmd/nether@latest
-```
-
-Or with Docker (Linux host only):
+Or with Docker (creates Linux servers only):
 ```
 docker pull ghcr.io/madhukraft/nether
-docker pull madhukraft/nether
 ```
 
 ## Usage
@@ -50,7 +44,7 @@ All flags at once:
 nether create --type paper --version 1.21.1 --ram 4G --port 25565
 ```
 
-With Docker (Linux host only, creates files in current directory):
+With Docker (creates files in current directory, Linux servers only):
 ```
 docker run --rm -it -v .:/data ghcr.io/madhukraft/nether create
 ```
