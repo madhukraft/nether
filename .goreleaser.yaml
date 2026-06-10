@@ -30,12 +30,22 @@ builds:
           - windows
       goarch:
           - amd64
+    - id: windows-arm64
+      main: ./cmd/nether
+      binary: nether
+      ldflags:
+          - -s -w -X github.com/madhukraft/nether/internal/cmd.Version={{ .Version }}
+      goos:
+          - windows
+      goarch:
+          - arm64
 
 archives:
     - formats: ["binary"]
       name_template: "{{ .ProjectName }}-{{ .Os }}-{{ .Arch }}"
       ids:
           - unix
+          - windows-arm64
     - id: windows
       formats: ["zip"]
       name_template: "{{ .ProjectName }}-windows-{{ .Arch }}"
