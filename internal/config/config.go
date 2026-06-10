@@ -4,30 +4,17 @@ import (
 	"os"
 
 	"github.com/BurntSushi/toml"
+	"github.com/madhukraft/nether/internal/modrinth"
 )
 
-type InstalledMod struct {
-	Slug          string `toml:"slug"`
-	ProjectID     string `toml:"project_id"`
-	VersionID     string `toml:"version_id"`
-	VersionNumber string `toml:"version_number"`
-}
-
 type ModsConfig struct {
-	AutoUpdate      bool           `toml:"auto_update"`
-	AutoInstallDeps bool           `toml:"auto_install_deps"`
-	Installed       []InstalledMod `toml:"installed"`
-}
-
-type InstalledModpack struct {
-	Slug          string `toml:"slug"`
-	ProjectID     string `toml:"project_id"`
-	VersionID     string `toml:"version_id"`
-	VersionNumber string `toml:"version_number"`
+	AutoUpdate      bool                  `toml:"auto_update"`
+	AutoInstallDeps bool                  `toml:"auto_install_deps"`
+	Installed       []modrinth.InstalledMod `toml:"installed"`
 }
 
 type ModpackConfig struct {
-	Installed []InstalledModpack `toml:"installed"`
+	Installed []modrinth.InstalledModpack `toml:"installed"`
 }
 
 type Config struct {
@@ -53,10 +40,10 @@ func Load() (*Config, error) {
 		return nil, err
 	}
 	if cfg.Mods.Installed == nil {
-		cfg.Mods.Installed = []InstalledMod{}
+		cfg.Mods.Installed = []modrinth.InstalledMod{}
 	}
 	if cfg.Modpacks.Installed == nil {
-		cfg.Modpacks.Installed = []InstalledModpack{}
+		cfg.Modpacks.Installed = []modrinth.InstalledModpack{}
 	}
 	return &cfg, nil
 }

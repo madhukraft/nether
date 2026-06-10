@@ -1,5 +1,19 @@
 package modrinth
 
+type InstalledMod struct {
+	Slug          string `toml:"slug"`
+	ProjectID     string `toml:"project_id"`
+	VersionID     string `toml:"version_id"`
+	VersionNumber string `toml:"version_number"`
+}
+
+type InstalledModpack struct {
+	Slug          string `toml:"slug"`
+	ProjectID     string `toml:"project_id"`
+	VersionID     string `toml:"version_id"`
+	VersionNumber string `toml:"version_number"`
+}
+
 type Project struct {
 	ID            string   `json:"id"`
 	Slug          string   `json:"slug"`
@@ -16,15 +30,16 @@ type Project struct {
 }
 
 type Version struct {
-	ID            string        `json:"id"`
-	ProjectID     string        `json:"project_id"`
-	Name          string        `json:"name"`
-	VersionNumber string        `json:"version_number"`
-	GameVersions  []string      `json:"game_versions"`
-	Loaders       []string      `json:"loaders"`
-	Files         []VersionFile `json:"files"`
-	Dependencies  []Dependency  `json:"dependencies"`
-	VersionType   string        `json:"version_type"`
+	ID             string        `json:"id"`
+	ProjectID      string        `json:"project_id"`
+	Name           string        `json:"name"`
+	VersionNumber  string        `json:"version_number"`
+	GameVersions   []string      `json:"game_versions"`
+	Loaders        []string      `json:"loaders"`
+	Files          []VersionFile `json:"files"`
+	Dependencies   []Dependency  `json:"dependencies"`
+	VersionType    string        `json:"version_type"`
+	DatePublished  string        `json:"date_published"`
 }
 
 type VersionFile struct {

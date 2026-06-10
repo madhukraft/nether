@@ -3,6 +3,8 @@ package config
 import (
 	"os"
 	"testing"
+
+	"github.com/madhukraft/nether/internal/modrinth"
 )
 
 func TestCheckTOMLOutput(t *testing.T) {
@@ -13,7 +15,7 @@ func TestCheckTOMLOutput(t *testing.T) {
 		Mods: ModsConfig{
 			AutoUpdate:      true,
 			AutoInstallDeps: true,
-			Installed: []InstalledMod{
+			Installed: []modrinth.InstalledMod{
 				{Slug: "fabric-api", ProjectID: "P7dR8mMs", VersionID: "abc", VersionNumber: "0.100.0"},
 			},
 		},
@@ -69,7 +71,7 @@ func TestSaveAndLoad(t *testing.T) {
 		Mods: ModsConfig{
 			AutoUpdate:      true,
 			AutoInstallDeps: true,
-			Installed: []InstalledMod{
+			Installed: []modrinth.InstalledMod{
 				{Slug: "fabric-api", ProjectID: "P7dR8mMs", VersionID: "abc123", VersionNumber: "0.100.0"},
 			},
 		},
