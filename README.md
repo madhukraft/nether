@@ -4,7 +4,17 @@ Minecraft server setup tool. Downloads the server jar and provisions its own bun
 
 ## Install
 
-Download the latest binary for your OS from [GitHub Releases](https://github.com/madhukraft/nether/releases) (Linux, macOS, Windows).
+**Linux / macOS:**
+```sh
+curl -fsSL https://raw.githubusercontent.com/madhukraft/nether/main/install.sh | sh
+```
+
+**Windows (PowerShell):**
+```powershell
+iwr -useb https://raw.githubusercontent.com/madhukraft/nether/main/install.ps1 | iex
+```
+
+Or download the binary for your OS from [GitHub Releases](https://github.com/madhukraft/nether/releases) (Linux, macOS, Windows, amd64 and arm64).
 
 Or with Go:
 ```
