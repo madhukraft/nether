@@ -43,7 +43,7 @@ jobs:
                   INITIAL_VERSION: v0.1.0
                   RELEASE_BRANCHES: main
 
-    binaries:
+    release:
         needs: [tag]
         runs-on: ubuntu-latest
         steps:
@@ -53,26 +53,6 @@ jobs:
 
             - name: Fetch tags
               run: git fetch --tags origin
-
-            - uses: actions/setup-go@v5
-              with:
-                  go-version-file: go.mod
-                  cache: true
-
-            - name: Run GoReleaser
-              uses: goreleaser/goreleaser-action@v6.4.0
-              with:
-                  distribution: goreleaser
-                  version: '~> 2'
-                  args: release --clean
-              env:
-                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-    docker:
-        needs: [tag]
-        runs-on: ubuntu-latest
-        steps:
-            - uses: actions/checkout@v4
 
             - name: Log in to GHCR
               uses: docker/login-action@v3
@@ -93,18 +73,16 @@ jobs:
             - name: Set up Docker Buildx
               uses: docker/setup-buildx-action@v3
 
-            - name: Build and push Docker image
-              uses: docker/build-push-action@v6
+            - uses: actions/setup-go@v5
               with:
-                  context: .
-                  platforms: linux/amd64,linux/arm64
-                  push: true
-                  tags: |
-                      ghcr.io/${{ github.repository }}:${{ needs.tag.outputs.tag }}
-                      ghcr.io/${{ github.repository }}:latest
-                      madhukraft/nether:${{ needs.tag.outputs.tag }}
-                      madhukraft/nether:latest
-                  build-args: |
-                      VERSION=${{ needs.tag.outputs.tag }}
-                  cache-from: type=gha
-                  cache-to: type=gha,mode=max
+                  go-version-file: go.mod
+                  cache: true
+
+            - name: Run GoReleaser
+              uses: goreleaser/goreleaser-action@v6.4.0
+              with:
+                  distribution: goreleaser
+                  version: '~> 2'
+                  args: release --clean
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

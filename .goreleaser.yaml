@@ -19,7 +19,7 @@ builds:
           - arm64
 
 archives:
-    - format: binary
+    - formats: ["binary"]
       name_template: "{{ .ProjectName }}-{{ .Os }}-{{ .Arch }}"
 
 checksum:
@@ -42,6 +42,26 @@ changelog:
         exclude:
             - "^docs:"
             - "^test:"
+
+dockers_v2:
+    - images:
+          - ghcr.io/madhukraft/nether
+          - madhukraft/nether
+      tags:
+          - "{{ .Version }}"
+          - latest
+      dockerfile: Dockerfile.goreleaser
+      platforms:
+          - linux/amd64
+          - linux/arm64
+      labels:
+          "org.opencontainers.image.title": "{{ .ProjectName }}"
+          "org.opencontainers.image.description": "Nether - Minecraft server setup tool"
+          "org.opencontainers.image.url": "https://github.com/madhukraft/nether"
+          "org.opencontainers.image.source": "https://github.com/madhukraft/nether"
+          "org.opencontainers.image.version": "{{ .Version }}"
+          "org.opencontainers.image.revision": "{{ .FullCommit }}"
+          "org.opencontainers.image.licenses": "MIT"
 
 nfpms:
     - package_name: nether

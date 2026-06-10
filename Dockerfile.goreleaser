@@ -1,0 +1,6 @@
+FROM alpine:3.21
+ARG TARGETPLATFORM
+RUN apk add --no-cache ca-certificates tzdata
+COPY $TARGETPLATFORM/nether /usr/local/bin/nether
+WORKDIR /data
+ENTRYPOINT ["nether"]
