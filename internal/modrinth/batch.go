@@ -6,7 +6,7 @@ import (
 	"os"
 	"time"
 
-	"golang.org/x/term"
+	"github.com/madhukraft/nether/internal/ui"
 )
 
 var batchStderr io.Writer = os.Stderr
@@ -46,15 +46,7 @@ func newBatchProgress(label string, total int) *batchProgress {
 		start: time.Now(),
 	}
 
-	if f, ok := batchStderr.(*os.File); ok && term.IsTerminal(int(f.Fd())) {
-		bp.isTTY = true
-		if w, _, err := term.GetSize(int(f.Fd())); err == nil {
-			bp.width = w
-		}
-	}
-	if bp.width == 0 {
-		bp.width = 80
-	}
+	bp.isTTY, bp.width = ui.IsTerminal(batchStderr)
 
 	return bp
 }
@@ -91,10 +83,10 @@ func (bp *batchProgress) done(downloaded, upToDate int, totalBytes int64) {
 
 	if bp.isTTY {
 		fmt.Fprintf(batchStderr, "\r  => Modpack %q installed (%d downloaded, %d up-to-date, %s in %v)\n",
-			bp.label, downloaded, upToDate, formatBytes(totalBytes), elapsed)
+			bp.label, downloaded, upToDate, ui.FormatBytes(totalBytes), elapsed)
 	} else {
 		fmt.Fprintf(batchStderr, "  => Modpack %q installed (%d downloaded, %d up-to-date, %s in %v)\n",
-			bp.label, downloaded, upToDate, formatBytes(totalBytes), elapsed)
+			bp.label, downloaded, upToDate, ui.FormatBytes(totalBytes), elapsed)
 	}
 }
 
@@ -112,10 +104,10 @@ func (bp *batchProgress) draw(file string, cur, total int64) {
 			file,
 			bp.current,
 			bp.total,
-			formatBytes(cur),
-			formatBytes(total),
+			ui.FormatBytes(cur),
+			ui.FormatBytes(total),
 			pct,
-			formatBytes(int64(speed)),
+			ui.FormatBytes(int64(speed)),
 		)
 	} else {
 		line = fmt.Sprintf("  %s: %s  (%d/%d)", bp.label, file, bp.current, bp.total)
@@ -127,15 +119,4 @@ func (bp *batchProgress) draw(file string, cur, total int64) {
 	fmt.Fprintf(batchStderr, "\r%s    ", line)
 }
 
-func formatBytes(b int64) string {
-	const unit = 1024
-	if b < unit {
-		return fmt.Sprintf("%d B", b)
-	}
-	div, exp := int64(unit), 0
-	for n := b / unit; n >= unit; n /= unit {
-		div *= unit
-		exp++
-	}
-	return fmt.Sprintf("%.1f %cB", float64(b)/float64(div), "KMGTPE"[exp])
-}
+

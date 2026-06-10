@@ -33,15 +33,7 @@ func NewProgressReader(r io.ReadCloser, total int64, label string) *ProgressRead
 		start: timeNow(),
 	}
 
-	if f, ok := stderr.(*os.File); ok && term.IsTerminal(int(f.Fd())) {
-		pr.isTTY = true
-		if w, _, err := term.GetSize(int(f.Fd())); err == nil {
-			pr.width = w
-		}
-	}
-	if pr.width == 0 {
-		pr.width = 80
-	}
+	pr.isTTY, pr.width = IsTerminal(stderr)
 
 	return pr
 }
@@ -86,26 +78,37 @@ func (pr *ProgressReader) draw() {
 		pct := float64(pr.cur) / float64(pr.total) * 100
 		fmt.Fprintf(stderr, "\r  %s  %s / %s  (%3.0f%%)  %s/s    ",
 			pr.label,
-			formatBytes(pr.cur),
-			formatBytes(pr.total),
+			FormatBytes(pr.cur),
+			FormatBytes(pr.total),
 			pct,
-			formatBytes(int64(speed)),
+			FormatBytes(int64(speed)),
 		)
 	} else {
 		fmt.Fprintf(stderr, "\r  %s  %s @ %s/s    ",
 			pr.label,
-			formatBytes(pr.cur),
-			formatBytes(int64(speed)),
+			FormatBytes(pr.cur),
+			FormatBytes(int64(speed)),
 		)
 	}
 }
 
 func (pr *ProgressReader) drawComplete() {
 	elapsed := timeNow().Sub(pr.start).Truncate(time.Millisecond * 100)
-	fmt.Fprintf(stderr, "\r  => %s  (%s in %v)\n", pr.label, formatBytes(pr.cur), elapsed)
+	fmt.Fprintf(stderr, "\r  => %s  (%s in %v)\n", pr.label, FormatBytes(pr.cur), elapsed)
 }
 
-func formatBytes(b int64) string {
+func IsTerminal(w io.Writer) (bool, int) {
+	width := 80
+	if f, ok := w.(*os.File); ok && term.IsTerminal(int(f.Fd())) {
+		if w, _, err := term.GetSize(int(f.Fd())); err == nil {
+			width = w
+		}
+		return true, width
+	}
+	return false, width
+}
+
+func FormatBytes(b int64) string {
 	const unit = 1024
 	if b < unit {
 		return fmt.Sprintf("%d B", b)
