@@ -21,30 +21,31 @@ created = "%s"
     return os.WriteFile("nether.toml", []byte(content), 0644)
 }
 
+var DefaultJVMFlags = []string{
+	"-XX:+AlwaysPreTouch",
+	"-XX:+DisableExplicitGC",
+	"-XX:+ParallelRefProcEnabled",
+	"-XX:+PerfDisableSharedMem",
+	"-XX:+UnlockExperimentalVMOptions",
+	"-XX:+UseG1GC",
+	"-XX:G1HeapRegionSize=8M",
+	"-XX:G1HeapWastePercent=5",
+	"-XX:G1MaxNewSizePercent=40",
+	"-XX:G1MixedGCCountTarget=4",
+	"-XX:G1MixedGCLiveThresholdPercent=90",
+	"-XX:G1NewSizePercent=30",
+	"-XX:G1RSetUpdatingPauseTimePercent=5",
+	"-XX:G1ReservePercent=20",
+	"-XX:InitiatingHeapOccupancyPercent=15",
+	"-XX:MaxGCPauseMillis=200",
+	"-XX:MaxTenuringThreshold=1",
+	"-XX:SurvivorRatio=32",
+	"-Dusing.aikars.flags=https://mcflags.emc.gs",
+	"-Daikars.new.flags=true",
+}
+
 func WriteStartScript(minRAM, maxRAM string) error {
-	flags := []string{
-		"-XX:+AlwaysPreTouch",
-		"-XX:+DisableExplicitGC",
-		"-XX:+ParallelRefProcEnabled",
-		"-XX:+PerfDisableSharedMem",
-		"-XX:+UnlockExperimentalVMOptions",
-		"-XX:+UseG1GC",
-		"-XX:G1HeapRegionSize=8M",
-		"-XX:G1HeapWastePercent=5",
-		"-XX:G1MaxNewSizePercent=40",
-		"-XX:G1MixedGCCountTarget=4",
-		"-XX:G1MixedGCLiveThresholdPercent=90",
-		"-XX:G1NewSizePercent=30",
-		"-XX:G1RSetUpdatingPauseTimePercent=5",
-		"-XX:G1ReservePercent=20",
-		"-XX:InitiatingHeapOccupancyPercent=15",
-		"-XX:MaxGCPauseMillis=200",
-		"-XX:MaxTenuringThreshold=1",
-		"-XX:SurvivorRatio=32",
-		"-Dusing.aikars.flags=https://mcflags.emc.gs",
-		"-Daikars.new.flags=true",
-	}
-	flagLine := strings.Join(flags, " ")
+	flagLine := strings.Join(DefaultJVMFlags, " ")
 
 	shContent := fmt.Sprintf("#!/usr/bin/env sh\n\n%s -Xms%s -Xmx%s %s -jar server.jar --nogui\n", bundledJavaRef(), minRAM, maxRAM, flagLine)
 	batContent := fmt.Sprintf("@echo off\r\n\r\njava\\bin\\java.exe -Xms%s -Xmx%s %s -jar server.jar --nogui\r\n", minRAM, maxRAM, flagLine)
