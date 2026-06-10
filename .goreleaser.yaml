@@ -4,10 +4,7 @@ project_name: nether
 
 before:
     hooks:
-        - mkdir -p completions
-        - go run ./cmd/nether completion bash > completions/nether.bash
-        - go run ./cmd/nether completion zsh > completions/nether.zsh
-        - go run ./cmd/nether completion fish > completions/nether.fish
+        - sh -c "mkdir -p completions && go run ./cmd/nether completion bash > completions/nether.bash && go run ./cmd/nether completion zsh > completions/nether.zsh && go run ./cmd/nether completion fish > completions/nether.fish"
 
 env:
     - CGO_ENABLED=0
