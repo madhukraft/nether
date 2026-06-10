@@ -1,9 +1,17 @@
 name: Release
 
 on:
-    push:
-        branches: [main]
     workflow_dispatch:
+        inputs:
+            bump:
+                description: "Version bump type"
+                required: true
+                default: patch
+                type: choice
+                options:
+                    - patch
+                    - minor
+                    - major
 
 permissions:
     contents: write
@@ -39,7 +47,7 @@ jobs:
               uses: anothrNick/github-tag-action@1.75.0
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-                  DEFAULT_BUMP: patch
+                  DEFAULT_BUMP: ${{ inputs.bump }}
                   INITIAL_VERSION: v0.1.0
                   RELEASE_BRANCHES: main
 
