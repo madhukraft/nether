@@ -60,6 +60,25 @@ func bundledJavaExists() bool {
 	return err == nil
 }
 
+func IsServerDirectory(dir string) bool {
+	entries := []string{
+		"eula.txt",
+		"server.properties",
+		"run.sh",
+		"run.bat",
+	}
+	for _, name := range entries {
+		if _, err := os.Stat(filepath.Join(dir, name)); err == nil {
+			return true
+		}
+	}
+	matches, err := filepath.Glob(filepath.Join(dir, "*.jar"))
+	if err == nil && len(matches) > 0 {
+		return true
+	}
+	return false
+}
+
 func patchScriptJava(path string, mode os.FileMode) error {
 	if _, err := os.Stat(path); err != nil {
 		return nil

@@ -22,11 +22,7 @@ var modsAddCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		slug := args[0]
 
-		cfg, err := config.Load()
-		if err != nil {
-			fmt.Println("No nether.toml found. Run 'nether create' first.")
-			os.Exit(1)
-		}
+		cfg := ensureServerInitialized()
 
 		autoDeps, _ := cmd.Flags().GetBool("auto-deps")
 		c := modrinth.NewClient()
@@ -72,11 +68,7 @@ var modsRemoveCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		slug := args[0]
 
-		cfg, err := config.Load()
-		if err != nil {
-			fmt.Println("No nether.toml found.")
-			os.Exit(1)
-		}
+		cfg := ensureServerInitialized()
 
 		var removed []modrinth.InstalledMod
 		for _, m := range cfg.Mods.Installed {

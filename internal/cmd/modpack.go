@@ -21,16 +21,13 @@ var modpackInstallCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		slug := args[0]
 
+		cfg := ensureServerInitialized()
+
 		c := modrinth.NewClient()
 		result, err := c.InstallModpack(slug)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			os.Exit(1)
-		}
-
-		cfg, cfgErr := config.Load()
-		if cfgErr != nil {
-			cfg = &config.Config{}
 		}
 
 		cfg.Modpacks.Installed = append(cfg.Modpacks.Installed, modrinth.InstalledModpack{
