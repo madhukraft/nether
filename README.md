@@ -27,11 +27,6 @@ scoop install madhukraft/nether
 
 Or download the binary for your OS from [GitHub Releases](https://github.com/madhukraft/nether/releases) (Linux, macOS, Windows, amd64 and arm64).
 
-Or with Go:
-```
-go install github.com/madhukraft/nether/cmd/nether@latest
-```
-
 Or with Docker (Linux host only):
 ```
 docker pull ghcr.io/madhukraft/nether
