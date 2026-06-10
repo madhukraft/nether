@@ -18,9 +18,31 @@ case "$(uname -m)" in
 esac
 
 URL="https://github.com/$REPO/releases/latest/download/nether-$OS-$ARCH"
-TMP_FILE="/tmp/nether-install"
 
-echo "Downloading nether for $OS/$ARCH..."
+if command -v curl >/dev/null 2>&1; then
+    NEW_VER=$(curl -sIo /dev/null -w '%{redirect_url}' "$URL" | sed 's|.*/download/\([^/]*\)/.*|\1|')
+    NEW_VER=${NEW_VER:-unknown}
+else
+    NEW_VER="unknown"
+fi
+
+if [ -f "$BIN_PATH" ]; then
+    OLD_VER="$("$BIN_PATH" -V 2>/dev/null || echo "")"
+    echo "Existing nether binary found at $BIN_PATH"
+    if [ -n "$OLD_VER" ]; then
+        echo "  Current version: v$OLD_VER"
+    fi
+    echo "  New version:     v$NEW_VER"
+    printf "Overwrite? [y/N]: "
+    read -r response < /dev/tty || true
+    case "$response" in
+        y|Y) ;;
+        *) echo "Aborting."; exit 1 ;;
+    esac
+fi
+
+TMP_FILE="/tmp/nether-install"
+echo "Downloading nether v$NEW_VER for $OS/$ARCH..."
 
 if command -v curl >/dev/null 2>&1; then
     curl -fsSL -o "$TMP_FILE" "$URL"
@@ -32,24 +54,7 @@ else
 fi
 
 chmod +x "$TMP_FILE"
-NEW_VER="$("$TMP_FILE" -V 2>/dev/null || echo "unknown")"
-
-if [ -f "$BIN_PATH" ]; then
-    OLD_VER="$("$BIN_PATH" -V 2>/dev/null || echo "")"
-    echo "Existing nether found at $BIN_PATH"
-    if [ -n "$OLD_VER" ]; then
-        echo "  Current version: $OLD_VER"
-    fi
-    echo "  New version:     $NEW_VER"
-    printf "Overwrite? [y/N]: "
-    read -r response < /dev/tty || true
-    case "$response" in
-        y|Y) ;;
-        *) echo "Aborting."; rm -f "$TMP_FILE"; exit 1 ;;
-    esac
-fi
-
 mkdir -p "$BIN_DIR"
 mv "$TMP_FILE" "$BIN_PATH"
-echo "Installed $NEW_VER to $BIN_PATH"
+echo "Installed v$NEW_VER to $BIN_PATH"
 echo "Run 'nether create' to get started."
