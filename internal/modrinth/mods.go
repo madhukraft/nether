@@ -86,6 +86,7 @@ func (c *Client) InstallMod(input, mcVersion, serverType string, autoDeps bool) 
 		ProjectID:     proj.ID,
 		VersionID:     ver.ID,
 		VersionNumber: ver.VersionNumber,
+		FileName:      primaryFile.Filename,
 	}
 
 	result := &InstallResult{
@@ -162,6 +163,7 @@ func (c *Client) installDependency(projectID, mcVersion, loader string) (*Instal
 		ProjectID:     proj.ID,
 		VersionID:     ver.ID,
 		VersionNumber: ver.VersionNumber,
+		FileName:      primaryFile.Filename,
 	}
 
 	result := &InstallResult{
@@ -171,14 +173,12 @@ func (c *Client) installDependency(projectID, mcVersion, loader string) (*Instal
 	}
 
 	filePath := filepath.Join("mods", primaryFile.Filename)
-	if _, err := os.Stat(filePath); err == nil {
-		return result, nil
+	if _, err := os.Stat(filePath); err != nil {
+		if err := downloadFile(primaryFile.URL, filePath); err != nil {
+			return nil, fmt.Errorf("downloading %s: %w", primaryFile.Filename, err)
+		}
+		result.Files = append(result.Files, filePath)
 	}
-
-	if err := downloadFile(primaryFile.URL, filePath); err != nil {
-		return nil, fmt.Errorf("downloading %s: %w", primaryFile.Filename, err)
-	}
-	result.Files = append(result.Files, filePath)
 
 	for _, dep := range ver.Dependencies {
 		if dep.DependencyType != "required" || dep.ProjectID == "" {

@@ -5,6 +5,7 @@ type InstalledMod struct {
 	ProjectID     string `toml:"project_id"`
 	VersionID     string `toml:"version_id"`
 	VersionNumber string `toml:"version_number"`
+	FileName      string `toml:"file_name"`
 }
 
 type InstalledModpack struct {
