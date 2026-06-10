@@ -64,7 +64,6 @@ release:
 
         ```sh
         docker pull ghcr.io/madhukraft/nether:{{ .Tag }}
-        docker pull madhukraft/nether:{{ .Tag }}
         ```
 
 changelog:

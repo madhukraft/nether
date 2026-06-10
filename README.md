@@ -30,7 +30,6 @@ Or download the binary for your OS from [GitHub Releases](https://github.com/mad
 Or with Docker (Linux host only):
 ```
 docker pull ghcr.io/madhukraft/nether
-docker pull madhukraft/nether
 ```
 
 ## Usage
