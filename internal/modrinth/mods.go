@@ -7,6 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+
+	"github.com/madhukraft/nether/internal/ui"
 )
 
 type InstallResult struct {
@@ -211,11 +213,15 @@ func downloadFile(url, destPath string) error {
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
+		resp.Body.Close()
 		return fmt.Errorf("HTTP %d", resp.StatusCode)
 	}
+
+	label := filepath.Base(destPath)
+	body := ui.NewProgressReader(resp.Body, resp.ContentLength, label)
+	defer body.Close()
 
 	out, err := os.Create(destPath)
 	if err != nil {
@@ -223,7 +229,7 @@ func downloadFile(url, destPath string) error {
 	}
 	defer out.Close()
 
-	_, err = io.Copy(out, resp.Body)
+	_, err = io.Copy(out, body)
 	return err
 }
 
