@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/madhukraft/nether/internal/config"
 	"github.com/madhukraft/nether/internal/modrinth"
@@ -25,6 +26,28 @@ var modsAddCmd = &cobra.Command{
 		cfg := ensureServerInitialized()
 
 		autoDeps, _ := cmd.Flags().GetBool("auto-deps")
+		reinstall, _ := cmd.Flags().GetBool("reinstall")
+
+		for _, prefix := range []string{"https://modrinth.com/", "http://modrinth.com/", "modrinth.com/"} {
+			if strings.HasPrefix(slug, prefix) {
+				path := strings.TrimPrefix(slug, prefix)
+				path = strings.TrimSuffix(path, "/")
+				parts := strings.Split(path, "/")
+				slug = parts[len(parts)-1]
+				break
+			}
+		}
+
+		for _, m := range cfg.Mods.Installed {
+			if m.Slug == slug || m.ProjectID == slug {
+				if !reinstall {
+					fmt.Printf("%s %s already installed. Use --reinstall to update.\n", m.Slug, m.VersionNumber)
+					return
+				}
+				break
+			}
+		}
+
 		c := modrinth.NewClient()
 
 		result, err := c.InstallMod(slug, cfg.Version, cfg.Type, autoDeps)
@@ -34,7 +57,18 @@ var modsAddCmd = &cobra.Command{
 		}
 
 		cfg.Mods.AutoInstallDeps = autoDeps
-		cfg.Mods.Installed = append(cfg.Mods.Installed, result.Mod)
+
+		found := false
+		for i, m := range cfg.Mods.Installed {
+			if m.Slug == result.Mod.Slug || m.ProjectID == result.Mod.ProjectID {
+				cfg.Mods.Installed[i] = result.Mod
+				found = true
+				break
+			}
+		}
+		if !found {
+			cfg.Mods.Installed = append(cfg.Mods.Installed, result.Mod)
+		}
 
 		for _, dep := range result.Deps {
 			found := false
@@ -54,7 +88,11 @@ var modsAddCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		fmt.Printf("Installed %s %s\n", result.Mod.Slug, result.Mod.VersionNumber)
+		if reinstall {
+			fmt.Printf("Updated %s %s\n", result.Mod.Slug, result.Mod.VersionNumber)
+		} else {
+			fmt.Printf("Installed %s %s\n", result.Mod.Slug, result.Mod.VersionNumber)
+		}
 		for _, dep := range result.Deps {
 			fmt.Printf("  dependency: %s %s\n", dep.Mod.Slug, dep.Mod.VersionNumber)
 		}
@@ -70,27 +108,38 @@ var modsRemoveCmd = &cobra.Command{
 
 		cfg := ensureServerInitialized()
 
-		var removed []modrinth.InstalledMod
+		var kept []modrinth.InstalledMod
 		for _, m := range cfg.Mods.Installed {
 			if m.Slug == slug || m.ProjectID == slug {
-				jarPath := fmt.Sprintf("mods/%s*.jar", m.Slug)
-				if matches, err := filepath.Glob(jarPath); err == nil {
-					for _, f := range matches {
-						os.Remove(f)
-						fmt.Printf("Removed %s\n", f)
+				if m.FileName != "" {
+					jarPath := filepath.Join("mods", m.FileName)
+					if err := os.Remove(jarPath); err == nil {
+						fmt.Printf("Removed %s\n", jarPath)
+					}
+				} else {
+					for _, pattern := range []string{
+						fmt.Sprintf("mods/%s*.jar", m.Slug),
+						fmt.Sprintf("mods/%s-*.jar", m.Slug),
+					} {
+						if matches, err := filepath.Glob(pattern); err == nil {
+							for _, f := range matches {
+								os.Remove(f)
+								fmt.Printf("Removed %s\n", f)
+							}
+						}
 					}
 				}
 			} else {
-				removed = append(removed, m)
+				kept = append(kept, m)
 			}
 		}
 
-		if len(removed) == len(cfg.Mods.Installed) {
+		if len(kept) == len(cfg.Mods.Installed) {
 			fmt.Printf("Mod %q not found\n", slug)
 			os.Exit(1)
 		}
 
-		cfg.Mods.Installed = removed
+		cfg.Mods.Installed = kept
 		if err := config.Save(cfg); err != nil {
 			fmt.Fprintf(os.Stderr, "Error saving config: %v\n", err)
 			os.Exit(1)
@@ -116,7 +165,15 @@ var modsListCmd = &cobra.Command{
 
 		fmt.Println("Installed mods:")
 		for _, m := range cfg.Mods.Installed {
-			fmt.Printf("  %s %s\n", m.Slug, m.VersionNumber)
+			status := "✓"
+			if m.FileName != "" {
+				if _, err := os.Stat(filepath.Join("mods", m.FileName)); err != nil {
+					status = "✗"
+				}
+			} else {
+				status = "?"
+			}
+			fmt.Printf("  %s %s %s\n", status, m.Slug, m.VersionNumber)
 		}
 	},
 }
@@ -127,7 +184,8 @@ var modsSearchCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		c := modrinth.NewClient()
-		results, err := c.Search(args[0], 10, nil)
+		facets := map[string][]string{"project_type": {"mod"}}
+		results, err := c.Search(args[0], 10, facets)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			os.Exit(1)
@@ -139,16 +197,33 @@ var modsSearchCmd = &cobra.Command{
 		}
 
 		for _, hit := range results.Hits {
-			fmt.Printf("  %s - %s\n", hit.Slug, hit.Title)
+			loaders := ""
+			if len(hit.Loaders) > 0 {
+				loaders = " [" + strings.Join(hit.Loaders, ", ") + "]"
+			}
+			fmt.Printf("  %s - %s%s\n", hit.Slug, hit.Title, loaders)
 			fmt.Printf("    %s\n", hit.Description)
-			fmt.Printf("    Downloads: %d | Follows: %d\n", hit.Downloads, hit.Follows)
+			fmt.Printf("    Downloads: %-9s | Follows: %s\n", humanNumber(hit.Downloads), humanNumber(hit.Follows))
 			fmt.Println()
 		}
 	},
 }
 
+func humanNumber(n int64) string {
+	switch {
+	case n >= 1_000_000:
+		return fmt.Sprintf("%.1fM", float64(n)/1_000_000)
+	case n >= 1_000:
+		return fmt.Sprintf("%.1fK", float64(n)/1_000)
+	default:
+		return fmt.Sprintf("%d", n)
+	}
+}
+
+
 func init() {
 	modsAddCmd.Flags().Bool("auto-deps", true, "Automatically install required and optional dependencies")
+	modsAddCmd.Flags().Bool("reinstall", false, "Reinstall mod even if already installed")
 	modsCmd.AddCommand(modsAddCmd)
 	modsCmd.AddCommand(modsRemoveCmd)
 	modsCmd.AddCommand(modsListCmd)
