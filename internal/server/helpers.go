@@ -13,29 +13,46 @@ var targetArch = runtime.GOARCH
 func SetTarget(os, arch string) {
 	if os != "" {
 		targetOS = os
+		if targetOS == "macos" {
+			targetOS = "darwin"
+		}
 	}
 	if arch != "" {
 		targetArch = arch
 	}
 }
 
-func IsRunningInDocker() bool {
-	_, err := os.Stat("/.dockerenv")
-	return err == nil
+func bundledJavaDir() string {
+	if targetOS == "darwin" {
+		return filepath.Join("java", "Contents", "Home")
+	}
+	return "java"
 }
 
 func bundledJavaPath() string {
 	if targetOS == "windows" {
 		return filepath.Join("java", "bin", "java.exe")
 	}
-	return filepath.Join("java", "bin", "java")
+	dir := bundledJavaDir()
+	if dir == "java" {
+		return filepath.Join("java", "bin", "java")
+	}
+	return filepath.Join(dir, "bin", "java")
 }
 
 func bundledJavaRef() string {
 	if targetOS == "windows" {
 		return filepath.Join("java", "bin", "java.exe")
 	}
-	return "./" + filepath.Join("java", "bin", "java")
+	dir := bundledJavaDir()
+	if dir == "java" {
+		return "./" + filepath.Join("java", "bin", "java")
+	}
+	return "./" + filepath.Join(dir, "bin", "java")
+}
+
+func bundledJavaHome() string {
+	return bundledJavaDir()
 }
 
 func bundledJavaExists() bool {
@@ -51,7 +68,14 @@ func patchScriptJava(path string, mode os.FileMode) error {
 	if err != nil {
 		return err
 	}
-	javaRef := bundledJavaRef()
+
+	var javaRef string
+	if strings.HasSuffix(path, ".bat") {
+		javaRef = "java\\bin\\java.exe"
+	} else {
+		javaRef = bundledJavaRef()
+	}
+
 	content := string(data)
 
 	content = strings.Replace(content, "exec java", "exec "+javaRef, 1)

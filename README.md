@@ -1,17 +1,17 @@
 # Nether
 
-Minecraft server setup tool.
+Minecraft server setup tool. Downloads the server jar and provisions its own bundled Java, fully isolated from your system.
 
 ## Install
 
-Download the latest binary for your OS from [GitHub Releases](https://github.com/madhukraft/nether/releases).
+Download the latest binary for your OS from [GitHub Releases](https://github.com/madhukraft/nether/releases) (Linux, macOS, Windows).
 
 Or with Go:
 ```
 go install github.com/madhukraft/nether/cmd/nether@latest
 ```
 
-Or with Docker:
+Or with Docker (Linux host only):
 ```
 docker pull ghcr.io/madhukraft/nether
 ```
@@ -28,7 +28,7 @@ All flags at once:
 nether create --type paper --version 1.21.1 --ram 4G --port 25565
 ```
 
-With Docker (creates files in your current directory):
+With Docker (Linux host only, creates files in current directory):
 ```
 docker run --rm -it -v .:/data ghcr.io/madhukraft/nether create
 ```

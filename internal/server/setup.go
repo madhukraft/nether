@@ -46,7 +46,7 @@ func WriteStartScript(minRAM, maxRAM string) error {
 	}
 	flagLine := strings.Join(flags, " ")
 
-	shContent := fmt.Sprintf("#!/usr/bin/env sh\n\n./java/bin/java -Xms%s -Xmx%s %s -jar server.jar --nogui\n", minRAM, maxRAM, flagLine)
+	shContent := fmt.Sprintf("#!/usr/bin/env sh\n\n%s -Xms%s -Xmx%s %s -jar server.jar --nogui\n", bundledJavaRef(), minRAM, maxRAM, flagLine)
 	batContent := fmt.Sprintf("@echo off\r\n\r\njava\\bin\\java.exe -Xms%s -Xmx%s %s -jar server.jar --nogui\r\n", minRAM, maxRAM, flagLine)
 
 	if err := os.WriteFile("run.sh", []byte(shContent), 0755); err != nil {

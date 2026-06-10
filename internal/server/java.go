@@ -214,7 +214,7 @@ func DownloadJava(mcVersion string, customVer int) error {
 
 	// Make sure the java binary is executable on Unix systems
 	if targetOS != "windows" {
-		javaBin := filepath.Join("java", "bin", "java")
+		javaBin := bundledJavaPath()
 		_ = os.Chmod(javaBin, 0755)
 	}
 
