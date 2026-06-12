@@ -7,6 +7,13 @@ import (
 	"testing"
 )
 
+func TestIsRunningInDocker(t *testing.T) {
+	// In a test environment, /.dockerenv shouldn't exist
+	if IsRunningInDocker() {
+		t.Log("running inside Docker — test is a no-op")
+	}
+}
+
 func TestSetTarget(t *testing.T) {
 	origOS := targetOS
 	origArch := targetArch

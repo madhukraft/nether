@@ -125,6 +125,10 @@ func promptServerType(in *bufio.Reader, out io.Writer) (string, error) {
 	return ui.Select(in, out, "Select server type:", types)
 }
 
+func promptTargetOS(in *bufio.Reader, out io.Writer) (string, error) {
+	return ui.Select(in, out, "Target OS for server scripts:", []string{"linux", "macos", "windows"})
+}
+
 var createCmd = &cobra.Command{
 	Use:   "create",
 	Short: "Create a new Minecraft server in the current directory",
@@ -135,6 +139,18 @@ var createCmd = &cobra.Command{
 		}
 
 		reader := bufio.NewReader(os.Stdin)
+
+		if !cmd.Flags().Changed("os") && server.IsRunningInDocker() {
+			osChoice, err := promptTargetOS(reader, os.Stdout)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "error: %v\n", err)
+				os.Exit(1)
+			}
+			if !server.SetTarget(osChoice, targetArchFlag) {
+				fmt.Fprintf(os.Stderr, "error: invalid target OS %q\n", osChoice)
+				os.Exit(1)
+			}
+		}
 
 		if !cmd.Flags().Changed("type") {
 			t, err := promptServerType(reader, os.Stdout)
