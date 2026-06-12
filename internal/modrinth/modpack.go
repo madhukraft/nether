@@ -68,7 +68,7 @@ func (c *Client) installMrpack(slug, projectID, versionID, versionNumber string,
 		return nil, fmt.Errorf("creating temp directory: %w", err)
 	}
 
-	if err := downloadFile(file.URL, mrpackPath); err != nil {
+	if err := DownloadModFile(file.URL, mrpackPath); err != nil {
 		return nil, fmt.Errorf("downloading modpack: %w", err)
 	}
 

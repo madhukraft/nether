@@ -118,6 +118,136 @@ var modsRemoveCmd = &cobra.Command{
 	},
 }
 
+var modsUpdateCmd = &cobra.Command{
+	Use:   "update [mod]",
+	Short: "Update installed mods to latest versions",
+	Long: `Check Modrinth for newer versions of installed mods and update them.
+If a mod slug is given, only that mod is updated. Otherwise all installed
+mods are checked.`,
+	Args: cobra.MaximumNArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		cfg := ensureServerInitialized()
+
+		loader := modrinth.MapServerTypeToLoader(cfg.Type)
+		if loader == "" {
+			fmt.Fprintf(os.Stderr, "Server type %q does not support mods\n", cfg.Type)
+			os.Exit(1)
+		}
+
+		c := modrinth.NewClient()
+
+		var toUpdate []modrinth.InstalledMod
+		if len(args) == 1 {
+			slug := modrinth.ParseSlug(args[0])
+			m := modrinth.FindInstalledMod(slug, cfg.Mods.Installed)
+			if m == nil {
+				fmt.Fprintf(os.Stderr, "Mod %q not found\n", slug)
+				os.Exit(1)
+			}
+			toUpdate = append(toUpdate, *m)
+		} else {
+			toUpdate = cfg.Mods.Installed
+		}
+
+		updated := 0
+		upToDate := 0
+		skipped := 0
+
+		for _, m := range toUpdate {
+			latest, err := c.GetLatestVersion(m.ProjectID, cfg.Version, loader)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error checking %s: %v\n", m.Slug, err)
+				skipped++
+				continue
+			}
+			if latest == nil {
+				fmt.Printf("%s — no version for %s %s\n", m.Slug, cfg.Type, cfg.Version)
+				skipped++
+				continue
+			}
+
+			if latest.ID == m.VersionID {
+				upToDate++
+				continue
+			}
+
+			primaryFile := modrinth.FindPrimaryFile(latest.Files)
+			if primaryFile == nil {
+				fmt.Fprintf(os.Stderr, "%s %s has no downloadable file, skipping\n", m.Slug, latest.VersionNumber)
+				skipped++
+				continue
+			}
+
+			if m.FileName != "" {
+				oldPath := filepath.Join("mods", m.FileName)
+				if err := os.Remove(oldPath); err == nil {
+					fmt.Printf("Removed old %s\n", m.FileName)
+				}
+			} else {
+				for _, pattern := range []string{
+					fmt.Sprintf("mods/%s*.jar", m.Slug),
+					fmt.Sprintf("mods/%s-*.jar", m.Slug),
+				} {
+					if matches, err := filepath.Glob(pattern); err == nil {
+						for _, f := range matches {
+							os.Remove(f)
+							fmt.Printf("Removed old %s\n", filepath.Base(f))
+						}
+					}
+				}
+			}
+
+			newPath := filepath.Join("mods", primaryFile.Filename)
+			if err := modrinth.DownloadModFile(primaryFile.URL, newPath); err != nil {
+				fmt.Fprintf(os.Stderr, "Error downloading %s: %v\n", m.Slug, err)
+				skipped++
+				continue
+			}
+
+			cfg.UpsertMod(modrinth.InstalledMod{
+				Slug:          m.Slug,
+				ProjectID:     m.ProjectID,
+				VersionID:     latest.ID,
+				VersionNumber: latest.VersionNumber,
+				FileName:      primaryFile.Filename,
+			})
+
+			fmt.Printf("Updated %s %s → %s\n", m.Slug, m.VersionNumber, latest.VersionNumber)
+			updated++
+		}
+
+		if updated > 0 {
+			if err := config.Save(cfg); err != nil {
+				fmt.Fprintf(os.Stderr, "Error saving config: %v\n", err)
+				os.Exit(1)
+			}
+		}
+
+		if len(args) == 1 {
+			slug := modrinth.ParseSlug(args[0])
+			if updated > 0 {
+				fmt.Printf("%s updated\n", slug)
+			} else if skipped == 0 {
+				fmt.Printf("%s is up to date\n", slug)
+			}
+		} else if updated > 0 || skipped > 0 {
+			parts := []string{}
+			if updated > 0 {
+				parts = append(parts, fmt.Sprintf("%d updated", updated))
+			}
+			if upToDate > 0 {
+				parts = append(parts, fmt.Sprintf("%d up to date", upToDate))
+			}
+			if skipped > 0 {
+				parts = append(parts, fmt.Sprintf("%d skipped", skipped))
+			}
+			fmt.Println(strings.Join(parts, ", "))
+		} else {
+			fmt.Println("All mods up to date")
+		}
+	},
+}
+
 var modsListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List installed mods",
@@ -198,6 +328,7 @@ func init() {
 	modsInstallCmd.Flags().Bool("reinstall", false, "Reinstall mod even if already installed")
 	modsCmd.AddCommand(modsInstallCmd)
 	modsCmd.AddCommand(modsRemoveCmd)
+	modsCmd.AddCommand(modsUpdateCmd)
 	modsCmd.AddCommand(modsListCmd)
 	modsCmd.AddCommand(searchCmd("mod"))
 	rootCmd.AddCommand(modsCmd)
