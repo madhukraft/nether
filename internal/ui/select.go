@@ -63,7 +63,7 @@ func Select(r io.Reader, w io.Writer, title string, options []string) (string, e
 func selectInteractive(w io.Writer, fd int, title string, options []string) (string, error) {
 	oldState, err := term.MakeRaw(fd)
 	if err != nil {
-		return "", fmt.Errorf("failed to set raw terminal: %w", err)
+		return selectFallback(os.Stdin, w, title, options)
 	}
 	defer term.Restore(fd, oldState)
 
