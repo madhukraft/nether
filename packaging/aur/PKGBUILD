@@ -1,0 +1,17 @@
+# Maintainer: Madhukraft <madhukraft@users.noreply.github.com>
+
+pkgname=nether-bin
+pkgver=1.0.0
+pkgrel=1
+pkgdesc="Nether - Minecraft server setup tool (binary release)"
+arch=('x86_64' 'aarch64')
+url="https://github.com/madhukraft/nether"
+license=('MIT')
+source_x86_64=("nether::https://github.com/madhukraft/nether/releases/download/${pkgver}/nether-linux-amd64")
+source_aarch64=("nether::https://github.com/madhukraft/nether/releases/download/${pkgver}/nether-linux-arm64")
+sha256sums_x86_64=('SKIP')
+sha256sums_aarch64=('SKIP')
+
+package() {
+    install -Dm755 "$srcdir/nether" "$pkgdir/usr/bin/nether"
+}

@@ -74,9 +74,9 @@ func GetJavaVersionForMinecraft(mcVersion string) int {
 		return 17
 	}
 
-	// major >= 21
 	return 21
 }
+
 
 func getAdoptiumOS() string {
 	if targetOS == "darwin" {
@@ -134,28 +134,24 @@ func GetJavaVersionFromJar(jarPath string) (int, error) {
 }
 
 func DownloadJava(mcVersion string, customVer int) error {
-	javaVer := GetJavaVersionForMinecraft(mcVersion)
+	return DownloadJavaVersion(customVer, false, mcVersion)
+}
 
-	if customVer > 0 {
-		javaVer = customVer
-		fmt.Printf("Using custom Java version %d\n", javaVer)
-	} else {
-		fmt.Printf("Using Java %d\n", javaVer)
+func DownloadJavaVersion(ver int, preferJDK bool, mcVersion string) error {
+	javaVer := ver
+	if javaVer <= 0 {
+		javaVer = GetJavaVersionForMinecraft(mcVersion)
 	}
+
+	fmt.Printf("Downloading Java %d...\n", javaVer)
 
 	osVal := getAdoptiumOS()
 	archVal := getAdoptiumArch()
 	verStr := strconv.Itoa(javaVer)
 
-	jreURL := fmt.Sprintf("https://api.adoptium.net/v3/binary/latest/%s/ga/%s/%s/jre/hotspot/normal/eclipse", verStr, osVal, archVal)
-	jdkURL := fmt.Sprintf("https://api.adoptium.net/v3/binary/latest/%s/ga/%s/%s/jdk/hotspot/normal/eclipse", verStr, osVal, archVal)
-
-	tmpFile, err := downloadFileToTemp(jreURL, "Java "+verStr+" JRE")
+	tmpFile, err := downloadJavaArchive(verStr, osVal, archVal, preferJDK)
 	if err != nil {
-		tmpFile, err = downloadFileToTemp(jdkURL, "Java "+verStr+" JDK")
-		if err != nil {
-			return fmt.Errorf("failed to download Java: %w", err)
-		}
+		return err
 	}
 	defer os.Remove(tmpFile)
 
@@ -173,7 +169,7 @@ func DownloadJava(mcVersion string, customVer int) error {
 		return fmt.Errorf("failed to detect archive type: %w", err)
 	}
 
-	fmt.Println("Installing Java...")
+	fmt.Println("Extracting Java...")
 	if archiveType == "tar.gz" {
 		if err := extractTarGz(tmpFile, "java"); err != nil {
 			return fmt.Errorf("failed to extract tar.gz: %w", err)
@@ -192,6 +188,33 @@ func DownloadJava(mcVersion string, customVer int) error {
 
 	fmt.Println("Java setup complete.")
 	return nil
+}
+
+func downloadJavaArchive(verStr, osVal, archVal string, preferJDK bool) (string, error) {
+	featureType := "jre"
+	if preferJDK {
+		featureType = "jdk"
+	}
+
+	url := fmt.Sprintf("https://api.adoptium.net/v3/binary/latest/%s/ga/%s/%s/%s/hotspot/normal/eclipse", verStr, osVal, archVal, featureType)
+
+	tmpFile, err := downloadFileToTemp(url, "Java "+verStr+" "+strings.ToUpper(featureType))
+	if err == nil {
+		return tmpFile, nil
+	}
+
+	if preferJDK {
+		// User explicitly asked for JDK, don't fall back
+		return "", fmt.Errorf("failed to download Java JDK: %w", err)
+	}
+
+	// Fall back to JDK if JRE is not available
+	url = fmt.Sprintf("https://api.adoptium.net/v3/binary/latest/%s/ga/%s/%s/jdk/hotspot/normal/eclipse", verStr, osVal, archVal)
+	tmpFile, err = downloadFileToTemp(url, "Java "+verStr+" JDK")
+	if err != nil {
+		return "", fmt.Errorf("failed to download Java: %w", err)
+	}
+	return tmpFile, nil
 }
 
 func detectArchiveType(filePath string) (string, error) {

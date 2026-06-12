@@ -27,7 +27,7 @@ scoop install madhukraft/nether
 
 Or download the binary for your OS from [GitHub Releases](https://github.com/madhukraft/nether/releases) (Linux, macOS, Windows, amd64 and arm64).
 
-Or with Docker (creates Linux servers only):
+Or with Docker:
 ```
 docker pull ghcr.io/madhukraft/nether
 ```
@@ -44,7 +44,7 @@ All flags at once:
 nether create --type paper --version 1.21.1 --ram 4G --port 25565
 ```
 
-With Docker (creates files in current directory, Linux servers only):
+With Docker (creates files in current directory):
 ```
 docker run --rm -it -v .:/data ghcr.io/madhukraft/nether create
 ```

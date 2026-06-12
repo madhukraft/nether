@@ -5,10 +5,12 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"runtime"
 	"strconv"
 	"strings"
 
 	"github.com/madhukraft/nether/internal/server"
+	"github.com/madhukraft/nether/internal/ui"
 	"github.com/spf13/cobra"
 )
 
@@ -20,15 +22,11 @@ var portFlag int
 var dirFlag string
 var javaFlag int
 var targetOSFlag string
+var targetArchFlag string
+var agreeEULA bool
 
 func promptEula(in *bufio.Reader, out io.Writer) (bool, error) {
-	fmt.Fprint(out, "Do you accept the Minecraft EULA (https://aka.ms/MinecraftEULA)? [y/N]: ")
-	response, err := in.ReadString('\n')
-	if err != nil {
-		return false, err
-	}
-	response = strings.TrimSpace(response)
-	return response == "y" || response == "Y", nil
+	return ui.Confirm(in, out, "Accept the Minecraft EULA (https://aka.ms/MinecraftEULA)?")
 }
 
 func parseRAM(input string) (string, error) {
@@ -70,8 +68,7 @@ func parseRAM(input string) (string, error) {
 
 func promptRAM(in *bufio.Reader, out io.Writer) (string, error) {
 	for {
-		fmt.Fprint(out, "Enter the amount of RAM to allocate (e.g. 2G or 2048M): ")
-		input, err := in.ReadString('\n')
+		input, err := ui.Input(in, out, "RAM to allocate (e.g. 2G or 2048M)", "")
 		if err != nil {
 			return "", err
 		}
@@ -85,8 +82,7 @@ func promptRAM(in *bufio.Reader, out io.Writer) (string, error) {
 
 func promptPort(in *bufio.Reader, out io.Writer) (int, error) {
 	for {
-		fmt.Fprint(out, "Server port (press Enter for 25565): ")
-		input, err := in.ReadString('\n')
+		input, err := ui.Input(in, out, "Server port (press Enter for 25565)", "25565")
 		if err != nil {
 			return 0, err
 		}
@@ -109,12 +105,10 @@ func promptPort(in *bufio.Reader, out io.Writer) (int, error) {
 
 func promptVersion(in *bufio.Reader, out io.Writer, serverType string) (string, error) {
 	for {
-		fmt.Fprint(out, "Minecraft version (e.g. 1.21.1): ")
-		input, err := in.ReadString('\n')
+		input, err := ui.Input(in, out, "Minecraft version (e.g. 1.21.1)", "")
 		if err != nil {
 			return "", err
 		}
-		input = strings.TrimSpace(input)
 		if input == "" {
 			fmt.Fprintln(out, "Version cannot be empty.")
 			continue
@@ -129,34 +123,56 @@ func promptVersion(in *bufio.Reader, out io.Writer, serverType string) (string, 
 
 func promptServerType(in *bufio.Reader, out io.Writer) (string, error) {
 	types := []string{"paper", "vanilla", "fabric", "neoforge", "forge"}
-	for {
-		fmt.Fprintln(out, "Select server type:")
-		for i, t := range types {
-			fmt.Fprintf(out, "  %d) %s\n", i+1, t)
+	return ui.Select(in, out, "Select server type:", types)
+}
+
+func promptTargetOS(in *bufio.Reader, out io.Writer) (string, error) {
+	return ui.Select(in, out, "What OS is your host running on?", []string{"linux", "macos", "windows"})
+}
+
+func flagOrPrompt[T any](changed bool, value T, prompt func() (T, error), validate func(T) error) T {
+	if changed {
+		if err := validate(value); err != nil {
+			fmt.Fprintf(os.Stderr, "Invalid flag: %v\n", err)
+			v, err := prompt()
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "error: %v\n", err)
+				os.Exit(1)
+			}
+			return v
 		}
-		fmt.Fprint(out, "Enter number [1]: ")
-		input, err := in.ReadString('\n')
-		if err != nil {
-			return "", err
-		}
-		input = strings.TrimSpace(input)
-		if input == "" {
-			return "paper", nil
-		}
-		n, err := strconv.Atoi(input)
-		if err != nil || n < 1 || n > len(types) {
-			fmt.Fprintf(out, "error: enter a number between 1 and %d.\n", len(types))
-			continue
-		}
-		return types[n-1], nil
+		return value
 	}
+	v, err := prompt()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		os.Exit(1)
+	}
+	return v
 }
 
 var createCmd = &cobra.Command{
 	Use:   "create",
 	Short: "Create a new Minecraft server in the current directory",
 	Run: func(cmd *cobra.Command, args []string) {
+		if !server.SetTarget(targetOSFlag, targetArchFlag) {
+			fmt.Fprintf(os.Stderr, "error: invalid target OS %q (use linux, macos, or windows)\n", targetOSFlag)
+			os.Exit(1)
+		}
+
 		reader := bufio.NewReader(os.Stdin)
+
+		if !cmd.Flags().Changed("os") && server.IsRunningInDocker() {
+			osChoice, err := promptTargetOS(reader, os.Stdout)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "error: %v\n", err)
+				os.Exit(1)
+			}
+			if !server.SetTarget(osChoice, targetArchFlag) {
+				fmt.Fprintf(os.Stderr, "error: invalid target OS %q\n", osChoice)
+				os.Exit(1)
+			}
+		}
 
 		if !cmd.Flags().Changed("type") {
 			t, err := promptServerType(reader, os.Stdout)
@@ -167,19 +183,20 @@ var createCmd = &cobra.Command{
 			serverType = t
 		}
 
-		if !cmd.Flags().Changed("version") {
-			v, err := promptVersion(reader, os.Stdout, serverType)
+		serverVersion = flagOrPrompt(
+			cmd.Flags().Changed("version"), serverVersion,
+			func() (string, error) { return promptVersion(reader, os.Stdout, serverType) },
+			func(v string) error { return server.ValidateVersion(serverType, v) },
+		)
+
+		accepted := agreeEULA
+		if !accepted {
+			var err error
+			accepted, err = promptEula(reader, os.Stdout)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "error reading version: %v\n", err)
+				fmt.Fprintf(os.Stderr, "error reading input: %v\n", err)
 				os.Exit(1)
 			}
-			serverVersion = v
-		}
-
-		accepted, err := promptEula(reader, os.Stdout)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "error reading input: %v\n", err)
-			os.Exit(1)
 		}
 		if !accepted {
 			fmt.Println("EULA not accepted. Aborting.")
@@ -190,11 +207,12 @@ var createCmd = &cobra.Command{
 		if ramFlag != "" {
 			r, err := parseRAM(ramFlag)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "error: invalid RAM value %q: %v\n", ramFlag, err)
-				os.Exit(1)
+				fmt.Fprintf(os.Stderr, "Invalid --ram: %v\n", err)
+			} else {
+				maxRAM = r
 			}
-			maxRAM = r
-		} else {
+		}
+		if maxRAM == "" {
 			r, err := promptRAM(reader, os.Stdout)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "error reading RAM allocation: %v\n", err)
@@ -207,25 +225,25 @@ var createCmd = &cobra.Command{
 		if minRAMFlag != "" {
 			r, err := parseRAM(minRAMFlag)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "error: invalid min RAM value %q: %v\n", minRAMFlag, err)
-				os.Exit(1)
+				fmt.Fprintf(os.Stderr, "Invalid --min-ram: %v\n", err)
+			} else {
+				minRAM = r
 			}
-			minRAM = r
-		} else {
+		}
+		if minRAM == "" {
 			minRAM = maxRAM
 		}
 
-		var port int
-		if portFlag != 0 {
-			port = portFlag
-		} else {
-			p, err := promptPort(reader, os.Stdout)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "error reading port: %v\n", err)
-				os.Exit(1)
-			}
-			port = p
-		}
+		port := flagOrPrompt(
+			cmd.Flags().Changed("port"), portFlag,
+			func() (int, error) { return promptPort(reader, os.Stdout) },
+			func(p int) error {
+				if p < 1 || p > 65535 {
+					return fmt.Errorf("port must be between 1 and 65535")
+				}
+				return nil
+			},
+		)
 
 		if dirFlag != "" {
 			if dirFlag != "." {
@@ -261,16 +279,16 @@ var createCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		server.SetTarget(targetOSFlag, "")
-
-		javaVer := server.GetJavaVersionForMinecraft(serverVersion)
-		if javaFlag != 0 {
-			if javaFlag < 8 || javaFlag > 30 {
-				fmt.Fprintf(os.Stderr, "error: Java version %d is outside reasonable range (8-30)\n", javaFlag)
-				os.Exit(1)
-			}
-			javaVer = javaFlag
-		}
+		javaVer := flagOrPrompt(
+			javaFlag != 0, javaFlag,
+			func() (int, error) { return server.GetJavaVersionForMinecraft(serverVersion), nil },
+			func(j int) error {
+				if j < 8 || j > 30 {
+					return fmt.Errorf("Java version %d is outside reasonable range (8-30)", j)
+				}
+				return nil
+			},
+		)
 
 		var installerFile string
 		switch serverType {
@@ -310,12 +328,16 @@ var createCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		if err := server.DownloadJava(serverVersion, javaVer); err != nil {
-			fmt.Fprintf(os.Stderr, "error setting up Java: %v\n", err)
-			os.Exit(1)
-		}
+		needsInstaller := installerFile != ""
+		resolvedOS := server.TargetOS()
+		targetDiffers := resolvedOS != runtime.GOOS
 
-		if installerFile != "" {
+		if needsInstaller && targetDiffers {
+			server.SetTarget(runtime.GOOS, targetArchFlag)
+			if err := server.DownloadJava(serverVersion, javaVer); err != nil {
+				fmt.Fprintf(os.Stderr, "error setting up Java: %v\n", err)
+				os.Exit(1)
+			}
 			switch serverType {
 			case "neoforge":
 				if err := server.InstallNeoForge(installerFile); err != nil {
@@ -326,6 +348,30 @@ var createCmd = &cobra.Command{
 				if err := server.InstallForge(installerFile); err != nil {
 					fmt.Fprintf(os.Stderr, "error: %v\n", err)
 					os.Exit(1)
+				}
+			}
+			server.SetTarget(resolvedOS, targetArchFlag)
+			if err := server.DownloadJava(serverVersion, javaVer); err != nil {
+				fmt.Fprintf(os.Stderr, "error setting up Java: %v\n", err)
+				os.Exit(1)
+			}
+		} else {
+			if err := server.DownloadJava(serverVersion, javaVer); err != nil {
+				fmt.Fprintf(os.Stderr, "error setting up Java: %v\n", err)
+				os.Exit(1)
+			}
+			if needsInstaller {
+				switch serverType {
+				case "neoforge":
+					if err := server.InstallNeoForge(installerFile); err != nil {
+						fmt.Fprintf(os.Stderr, "error: %v\n", err)
+						os.Exit(1)
+					}
+				case "forge":
+					if err := server.InstallForge(installerFile); err != nil {
+						fmt.Fprintf(os.Stderr, "error: %v\n", err)
+						os.Exit(1)
+					}
 				}
 			}
 		}
@@ -370,5 +416,7 @@ func init() {
 	createCmd.Flags().StringVar(&dirFlag, "dir", "", "Directory to create the server in (use '.' for current directory)")
 	createCmd.Flags().IntVar(&javaFlag, "java", 0, "Java major version (auto-detected if not set)")
 	createCmd.Flags().StringVar(&targetOSFlag, "os", "", "Target OS for Java and scripts (linux, macos, windows)")
+	createCmd.Flags().StringVar(&targetArchFlag, "arch", "", "Target architecture (amd64, arm64; defaults to host)")
+	createCmd.Flags().BoolVar(&agreeEULA, "agree-to-eula", false, "Agree to the Minecraft EULA automatically")
 	rootCmd.AddCommand(createCmd)
 }

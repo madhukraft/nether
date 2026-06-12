@@ -25,7 +25,7 @@ func (c *Client) slugToID(slug string) (string, error) {
 	return proj.ID, nil
 }
 
-func mapServerTypeToLoader(serverType string) string {
+func MapServerTypeToLoader(serverType string) string {
 	switch serverType {
 	case "fabric":
 		return "fabric"
@@ -38,6 +38,20 @@ func mapServerTypeToLoader(serverType string) string {
 	default:
 		return ""
 	}
+}
+
+func (c *Client) GetLatestVersion(projectID, mcVersion, loader string) (*Version, error) {
+	versions, err := c.GetVersions(projectID, []string{loader}, []string{mcVersion})
+	if err != nil {
+		return nil, err
+	}
+	if len(versions) == 0 {
+		return nil, nil
+	}
+	sort.Slice(versions, func(i, j int) bool {
+		return versions[i].DatePublished > versions[j].DatePublished
+	})
+	return &versions[0], nil
 }
 
 func (c *Client) InstallMod(input, mcVersion, serverType string, autoDeps bool) (*InstallResult, error) {
@@ -56,25 +70,18 @@ func (c *Client) InstallMod(input, mcVersion, serverType string, autoDeps bool) 
 		return nil, fmt.Errorf("%q does not support servers", slug)
 	}
 
-	loader := mapServerTypeToLoader(serverType)
+	loader := MapServerTypeToLoader(serverType)
 	if loader == "" {
 		return nil, fmt.Errorf("server type %q does not support mods (use fabric, forge, neoforge, or quilt)", serverType)
 	}
 
-	versions, err := c.GetVersions(proj.ID, []string{loader}, []string{mcVersion})
+	ver, err := c.GetLatestVersion(proj.ID, mcVersion, loader)
 	if err != nil {
 		return nil, fmt.Errorf("fetching versions for %q: %w", slug, err)
 	}
-
-	if len(versions) == 0 {
+	if ver == nil {
 		return nil, fmt.Errorf("no version of %q found for Minecraft %s with %s", slug, mcVersion, loader)
 	}
-
-	sort.Slice(versions, func(i, j int) bool {
-		return versions[i].DatePublished > versions[j].DatePublished
-	})
-
-	ver := &versions[0]
 
 	primaryFile := FindPrimaryFile(ver.Files)
 	if primaryFile == nil {
@@ -101,7 +108,7 @@ func (c *Client) InstallMod(input, mcVersion, serverType string, autoDeps bool) 
 	}
 
 	filePath := filepath.Join(destDir, primaryFile.Filename)
-	if err := downloadFile(primaryFile.URL, filePath); err != nil {
+	if err := DownloadModFile(primaryFile.URL, filePath); err != nil {
 		return nil, fmt.Errorf("downloading %s: %w", primaryFile.Filename, err)
 	}
 	result.Files = append(result.Files, filePath)
@@ -174,7 +181,7 @@ func (c *Client) installDependency(projectID, mcVersion, loader string) (*Instal
 
 	filePath := filepath.Join("mods", primaryFile.Filename)
 	if _, err := os.Stat(filePath); err != nil {
-		if err := downloadFile(primaryFile.URL, filePath); err != nil {
+		if err := DownloadModFile(primaryFile.URL, filePath); err != nil {
 			return nil, fmt.Errorf("downloading %s: %w", primaryFile.Filename, err)
 		}
 		result.Files = append(result.Files, filePath)
@@ -186,6 +193,7 @@ func (c *Client) installDependency(projectID, mcVersion, loader string) (*Instal
 		}
 		sub, err := c.installDependency(dep.ProjectID, mcVersion, loader)
 		if err != nil {
+			fmt.Fprintf(os.Stderr, "  warning: failed to install dependency %s: %v\n", dep.ProjectID, err)
 			continue
 		}
 		if sub != nil {
@@ -208,7 +216,7 @@ func FindPrimaryFile(files []VersionFile) *VersionFile {
 	return nil
 }
 
-func downloadFile(url, destPath string) error {
+func DownloadModFile(url, destPath string) error {
 	resp, err := http.Get(url)
 	if err != nil {
 		return err
