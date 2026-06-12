@@ -1,16 +1,12 @@
 package ui
 
-import (
-	"os"
-
-	"golang.org/x/term"
-)
+import "os"
 
 var colorEnabled bool
 
 func init() {
 	_, noColor := os.LookupEnv("NO_COLOR")
-	colorEnabled = term.IsTerminal(int(os.Stdout.Fd())) && !noColor
+	colorEnabled = supportsANSITerminal(int(os.Stdout.Fd())) && !noColor
 }
 
 func Colorize(code, text string) string {

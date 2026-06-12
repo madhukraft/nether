@@ -6,12 +6,10 @@ import (
 	"io"
 	"os"
 	"strings"
-
-	"golang.org/x/term"
 )
 
 func Input(r io.Reader, w io.Writer, message, defaultVal string) (string, error) {
-	if term.IsTerminal(int(os.Stdin.Fd())) {
+	if supportsANSITerminal(int(os.Stdin.Fd())) {
 		return inputInteractive(w, message, defaultVal)
 	}
 	return inputFallback(r, w, message, defaultVal)
@@ -62,7 +60,7 @@ func inputFallback(r io.Reader, w io.Writer, message, defaultVal string) (string
 }
 
 func Confirm(r io.Reader, w io.Writer, message string) (bool, error) {
-	if term.IsTerminal(int(os.Stdin.Fd())) {
+	if supportsANSITerminal(int(os.Stdin.Fd())) {
 		return confirmInteractive(w, message)
 	}
 	return confirmFallback(r, w, message)

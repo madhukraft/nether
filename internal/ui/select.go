@@ -54,7 +54,7 @@ func Select(r io.Reader, w io.Writer, title string, options []string) (string, e
 	}
 
 	fd := int(os.Stdin.Fd())
-	if term.IsTerminal(fd) {
+	if supportsANSITerminal(fd) {
 		return selectInteractive(w, fd, title, options)
 	}
 	return selectFallback(r, w, title, options)
