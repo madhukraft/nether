@@ -11,9 +11,8 @@ import (
 const neoforgeMavenURL = "https://maven.neoforged.net/releases/net/neoforged/neoforge"
 
 type neoForgeVersion struct {
-	mcMinor int
-	full    string
-	parts   []int
+	full  string
+	parts []int
 }
 
 func parseNeoForgeVersions(versions []string) []neoForgeVersion {
@@ -26,15 +25,11 @@ func parseNeoForgeVersions(versions []string) []neoForgeVersion {
 		if len(parts) < 2 {
 			continue
 		}
-		mcMinor, err := strconv.Atoi(parts[0])
-		if err != nil {
-			continue
-		}
 		nums, ok := parseVersionParts(v)
 		if !ok {
 			continue
 		}
-		out = append(out, neoForgeVersion{mcMinor: mcMinor, full: v, parts: nums})
+		out = append(out, neoForgeVersion{full: v, parts: nums})
 	}
 	return out
 }
@@ -48,6 +43,13 @@ func getNeoForgeVersionForMC(mcVersion string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("invalid Minecraft version: %s", mcVersion)
 	}
+	mcPatch := 0
+	if len(parts) >= 3 {
+		mcPatch, err = strconv.Atoi(parts[2])
+		if err != nil {
+			return "", fmt.Errorf("invalid Minecraft version: %s", mcVersion)
+		}
+	}
 
 	meta, err := fetchMavenMetadata(neoforgeMavenURL)
 	if err != nil {
@@ -58,7 +60,7 @@ func getNeoForgeVersionForMC(mcVersion string) (string, error) {
 
 	var candidates []neoForgeVersion
 	for _, v := range parsed {
-		if v.mcMinor == mcMinor {
+		if len(v.parts) >= 2 && v.parts[0] == mcMinor && v.parts[1] == mcPatch {
 			candidates = append(candidates, v)
 		}
 	}

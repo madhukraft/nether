@@ -41,9 +41,8 @@ func getForgeVersionForMC(mcVersion string) (string, error) {
 	parsed := parseForgeVersions(meta.Versioning.Versions)
 
 	var candidates []forgeVersion
-	prefix := mcVersion + "-"
 	for _, v := range parsed {
-		if strings.HasPrefix(v.mcVersion+"-", prefix) {
+		if v.mcVersion == mcVersion {
 			candidates = append(candidates, v)
 		}
 	}
