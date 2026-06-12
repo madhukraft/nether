@@ -74,9 +74,9 @@ func GetJavaVersionForMinecraft(mcVersion string) int {
 		return 17
 	}
 
-	// major >= 21
 	return 21
 }
+
 
 func getAdoptiumOS() string {
 	if targetOS == "darwin" {
