@@ -68,9 +68,8 @@ func selectInteractive(w io.Writer, fd int, title string, options []string) (str
 	defer term.Restore(fd, oldState)
 
 	selected := 0
+	lines := 1 + len(options)
 
-	// Save cursor position at the start of the rendered block
-	fmt.Fprint(w, "\033[s")
 	writeList(w, title, options, selected)
 
 	for {
@@ -83,27 +82,30 @@ func selectInteractive(w io.Writer, fd int, title string, options []string) (str
 		case keyUp:
 			if selected > 0 {
 				selected--
-				restoreAndRedraw(w, title, options, selected)
+				redraw(w, title, options, selected, lines)
 			}
 		case keyDown:
 			if selected < len(options)-1 {
 				selected++
-				restoreAndRedraw(w, title, options, selected)
+				redraw(w, title, options, selected, lines)
 			}
 		case keyEnter:
-			// Restore cursor, clear the rendered block, show result
-			fmt.Fprint(w, "\033[u\033[J")
+			clearBlock(w, lines)
 			fmt.Fprintf(w, "%s %s\r\n", Bold(title), Cyan(options[selected]))
 			return options[selected], nil
 		case keyCtrlC:
-			fmt.Fprint(w, "\033[u\033[J")
+			clearBlock(w, lines)
 			return "", fmt.Errorf("cancelled")
 		}
 	}
 }
 
-func restoreAndRedraw(w io.Writer, title string, options []string, selected int) {
-	fmt.Fprint(w, "\033[u\033[J")
+func clearBlock(w io.Writer, lines int) {
+	fmt.Fprintf(w, "\033[%dA\033[J", lines)
+}
+
+func redraw(w io.Writer, title string, options []string, selected int, lines int) {
+	fmt.Fprintf(w, "\033[%dA\033[J", lines)
 	writeList(w, title, options, selected)
 }
 
