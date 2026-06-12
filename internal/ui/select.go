@@ -21,7 +21,7 @@ const (
 	keyCtrlC
 )
 
-func readKey(fd int) (key, error) {
+func readKey() (key, error) {
 	buf := make([]byte, 3)
 	n, err := os.Stdin.Read(buf)
 	if err != nil {
@@ -69,14 +69,13 @@ func selectInteractive(w io.Writer, fd int, title string, options []string) (str
 
 	selected := 0
 
-	// Initial render
-	// \r\n is required in raw mode since ONLCR is disabled
+	// Save cursor position at the start of the rendered block
+	fmt.Fprint(w, "\033[s")
 	writeList(w, title, options, selected)
 
 	for {
-		k, err := readKey(fd)
+		k, err := readKey()
 		if err != nil {
-			fmt.Fprint(w, "\r\n")
 			return "", err
 		}
 
@@ -84,37 +83,28 @@ func selectInteractive(w io.Writer, fd int, title string, options []string) (str
 		case keyUp:
 			if selected > 0 {
 				selected--
-				moveUp(w, len(options)+2)
-				writeList(w, title, options, selected)
+				restoreAndRedraw(w, title, options, selected)
 			}
 		case keyDown:
 			if selected < len(options)-1 {
 				selected++
-				moveUp(w, len(options)+2)
-				writeList(w, title, options, selected)
+				restoreAndRedraw(w, title, options, selected)
 			}
 		case keyEnter:
-			moveUp(w, len(options)+2)
-			clearToEnd(w)
+			// Restore cursor, clear the rendered block, show result
+			fmt.Fprint(w, "\033[u\033[J")
 			fmt.Fprintf(w, "%s %s\r\n", Bold(title), Cyan(options[selected]))
 			return options[selected], nil
 		case keyCtrlC:
-			moveUp(w, len(options)+2)
-			clearToEnd(w)
+			fmt.Fprint(w, "\033[u\033[J")
 			return "", fmt.Errorf("cancelled")
 		}
 	}
 }
 
-func moveUp(w io.Writer, n int) {
-	if n > 0 {
-		fmt.Fprintf(w, "\033[%dA", n)
-	}
-}
-
-func clearToEnd(w io.Writer) {
-	// Clear from cursor to bottom of screen
-	fmt.Fprint(w, "\033[J")
+func restoreAndRedraw(w io.Writer, title string, options []string, selected int) {
+	fmt.Fprint(w, "\033[u\033[J")
+	writeList(w, title, options, selected)
 }
 
 func writeList(w io.Writer, title string, options []string, selected int) {
