@@ -235,7 +235,7 @@ var createCmd = &cobra.Command{
 		}
 
 		port := flagOrPrompt(
-			portFlag != 0, portFlag,
+			cmd.Flags().Changed("port"), portFlag,
 			func() (int, error) { return promptPort(reader, os.Stdout) },
 			func(p int) error {
 				if p < 1 || p > 65535 {
