@@ -126,7 +126,7 @@ func promptServerType(in *bufio.Reader, out io.Writer) (string, error) {
 }
 
 func promptTargetOS(in *bufio.Reader, out io.Writer) (string, error) {
-	return ui.Select(in, out, "Target OS for server scripts:", []string{"linux", "macos", "windows"})
+	return ui.Select(in, out, "What OS is your host running on?", []string{"linux", "macos", "windows"})
 }
 
 var createCmd = &cobra.Command{
