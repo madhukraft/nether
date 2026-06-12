@@ -169,7 +169,7 @@ func DownloadJavaVersion(ver int, preferJDK bool, mcVersion string) error {
 		return fmt.Errorf("failed to detect archive type: %w", err)
 	}
 
-	fmt.Println("Installing Java...")
+	fmt.Println("Extracting Java...")
 	if archiveType == "tar.gz" {
 		if err := extractTarGz(tmpFile, "java"); err != nil {
 			return fmt.Errorf("failed to extract tar.gz: %w", err)
