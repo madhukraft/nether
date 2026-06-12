@@ -129,6 +129,27 @@ func promptTargetOS(in *bufio.Reader, out io.Writer) (string, error) {
 	return ui.Select(in, out, "What OS is your host running on?", []string{"linux", "macos", "windows"})
 }
 
+func flagOrPrompt[T any](changed bool, value T, prompt func() (T, error), validate func(T) error) T {
+	if changed {
+		if err := validate(value); err != nil {
+			fmt.Fprintf(os.Stderr, "Invalid flag: %v\n", err)
+			v, err := prompt()
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "error: %v\n", err)
+				os.Exit(1)
+			}
+			return v
+		}
+		return value
+	}
+	v, err := prompt()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		os.Exit(1)
+	}
+	return v
+}
+
 var createCmd = &cobra.Command{
 	Use:   "create",
 	Short: "Create a new Minecraft server in the current directory",
@@ -161,14 +182,11 @@ var createCmd = &cobra.Command{
 			serverType = t
 		}
 
-		if !cmd.Flags().Changed("version") {
-			v, err := promptVersion(reader, os.Stdout, serverType)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "error reading version: %v\n", err)
-				os.Exit(1)
-			}
-			serverVersion = v
-		}
+		serverVersion = flagOrPrompt(
+			cmd.Flags().Changed("version"), serverVersion,
+			func() (string, error) { return promptVersion(reader, os.Stdout, serverType) },
+			func(v string) error { return server.ValidateVersion(serverType, v) },
+		)
 
 		accepted := agreeEULA
 		if !accepted {
@@ -188,11 +206,12 @@ var createCmd = &cobra.Command{
 		if ramFlag != "" {
 			r, err := parseRAM(ramFlag)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "error: invalid RAM value %q: %v\n", ramFlag, err)
-				os.Exit(1)
+				fmt.Fprintf(os.Stderr, "Invalid --ram: %v\n", err)
+			} else {
+				maxRAM = r
 			}
-			maxRAM = r
-		} else {
+		}
+		if maxRAM == "" {
 			r, err := promptRAM(reader, os.Stdout)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "error reading RAM allocation: %v\n", err)
@@ -205,25 +224,25 @@ var createCmd = &cobra.Command{
 		if minRAMFlag != "" {
 			r, err := parseRAM(minRAMFlag)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "error: invalid min RAM value %q: %v\n", minRAMFlag, err)
-				os.Exit(1)
+				fmt.Fprintf(os.Stderr, "Invalid --min-ram: %v\n", err)
+			} else {
+				minRAM = r
 			}
-			minRAM = r
-		} else {
+		}
+		if minRAM == "" {
 			minRAM = maxRAM
 		}
 
-		var port int
-		if portFlag != 0 {
-			port = portFlag
-		} else {
-			p, err := promptPort(reader, os.Stdout)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "error reading port: %v\n", err)
-				os.Exit(1)
-			}
-			port = p
-		}
+		port := flagOrPrompt(
+			portFlag != 0, portFlag,
+			func() (int, error) { return promptPort(reader, os.Stdout) },
+			func(p int) error {
+				if p < 1 || p > 65535 {
+					return fmt.Errorf("port must be between 1 and 65535")
+				}
+				return nil
+			},
+		)
 
 		if dirFlag != "" {
 			if dirFlag != "." {
@@ -259,14 +278,16 @@ var createCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		javaVer := server.GetJavaVersionForMinecraft(serverVersion)
-		if javaFlag != 0 {
-			if javaFlag < 8 || javaFlag > 30 {
-				fmt.Fprintf(os.Stderr, "error: Java version %d is outside reasonable range (8-30)\n", javaFlag)
-				os.Exit(1)
-			}
-			javaVer = javaFlag
-		}
+		javaVer := flagOrPrompt(
+			javaFlag != 0, javaFlag,
+			func() (int, error) { return server.GetJavaVersionForMinecraft(serverVersion), nil },
+			func(j int) error {
+				if j < 8 || j > 30 {
+					return fmt.Errorf("Java version %d is outside reasonable range (8-30)", j)
+				}
+				return nil
+			},
+		)
 
 		var installerFile string
 		switch serverType {
