@@ -107,7 +107,10 @@ func (c *Client) installMrpack(slug, projectID, versionID, versionNumber string,
 	var totalBytes int64
 
 	for _, f := range serverFiles {
-		destPath := filepath.Join(".", f.Path)
+		destPath, err := safeJoin(".", f.Path)
+		if err != nil {
+			return nil, fmt.Errorf("illegal path in modpack: %w", err)
+		}
 		if err := os.MkdirAll(filepath.Dir(destPath), 0755); err != nil {
 			return nil, fmt.Errorf("creating directory for %s: %w", f.Path, err)
 		}
@@ -241,7 +244,10 @@ func extractOverrides(mrpackPath string) error {
 			continue
 		}
 
-		destPath := filepath.Join(".", relPath)
+		destPath, err := safeJoin(".", relPath)
+		if err != nil {
+			return fmt.Errorf("illegal override path: %w", err)
+		}
 
 		if f.FileInfo().IsDir() {
 			os.MkdirAll(destPath, 0755)
@@ -275,6 +281,18 @@ func extractOverrides(mrpackPath string) error {
 	}
 
 	return nil
+}
+
+func safeJoin(base, path string) (string, error) {
+	if filepath.IsAbs(path) {
+		return "", fmt.Errorf("path %q is absolute", path)
+	}
+	cleaned := filepath.Join(base, path)
+	rel, err := filepath.Rel(base, cleaned)
+	if err != nil || strings.HasPrefix(rel, "..") {
+		return "", fmt.Errorf("path %q escapes base directory", path)
+	}
+	return cleaned, nil
 }
 
 func verifySha1(path, expectedHex string) error {
