@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"runtime"
 	"strconv"
 	"strings"
 
@@ -327,12 +328,16 @@ var createCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		if err := server.DownloadJava(serverVersion, javaVer); err != nil {
-			fmt.Fprintf(os.Stderr, "error setting up Java: %v\n", err)
-			os.Exit(1)
-		}
+		needsInstaller := installerFile != ""
+		resolvedOS := server.TargetOS()
+		targetDiffers := resolvedOS != runtime.GOOS
 
-		if installerFile != "" {
+		if needsInstaller && targetDiffers {
+			server.SetTarget(runtime.GOOS, targetArchFlag)
+			if err := server.DownloadJava(serverVersion, javaVer); err != nil {
+				fmt.Fprintf(os.Stderr, "error setting up Java: %v\n", err)
+				os.Exit(1)
+			}
 			switch serverType {
 			case "neoforge":
 				if err := server.InstallNeoForge(installerFile); err != nil {
@@ -343,6 +348,30 @@ var createCmd = &cobra.Command{
 				if err := server.InstallForge(installerFile); err != nil {
 					fmt.Fprintf(os.Stderr, "error: %v\n", err)
 					os.Exit(1)
+				}
+			}
+			server.SetTarget(resolvedOS, targetArchFlag)
+			if err := server.DownloadJava(serverVersion, javaVer); err != nil {
+				fmt.Fprintf(os.Stderr, "error setting up Java: %v\n", err)
+				os.Exit(1)
+			}
+		} else {
+			if err := server.DownloadJava(serverVersion, javaVer); err != nil {
+				fmt.Fprintf(os.Stderr, "error setting up Java: %v\n", err)
+				os.Exit(1)
+			}
+			if needsInstaller {
+				switch serverType {
+				case "neoforge":
+					if err := server.InstallNeoForge(installerFile); err != nil {
+						fmt.Fprintf(os.Stderr, "error: %v\n", err)
+						os.Exit(1)
+					}
+				case "forge":
+					if err := server.InstallForge(installerFile); err != nil {
+						fmt.Fprintf(os.Stderr, "error: %v\n", err)
+						os.Exit(1)
+					}
 				}
 			}
 		}
