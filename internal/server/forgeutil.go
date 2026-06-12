@@ -81,5 +81,11 @@ func installForgeLike(installerFile, label string) error {
 		return fmt.Errorf("failed to fix run.bat: %w", err)
 	}
 
+	if targetOS == "windows" {
+		os.Remove("run.sh")
+	} else {
+		os.Remove("run.bat")
+	}
+
 	return nil
 }
