@@ -193,6 +193,7 @@ func (c *Client) installDependency(projectID, mcVersion, loader string) (*Instal
 		}
 		sub, err := c.installDependency(dep.ProjectID, mcVersion, loader)
 		if err != nil {
+			fmt.Fprintf(os.Stderr, "  warning: failed to install dependency %s: %v\n", dep.ProjectID, err)
 			continue
 		}
 		if sub != nil {
