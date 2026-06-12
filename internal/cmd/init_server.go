@@ -56,9 +56,10 @@ func ensureServerInitialized() *config.Config {
 	}
 
 	cfg = &config.Config{
-		Type:    serverType,
-		Version: version,
-		Created: time.Now().UTC().Format(time.RFC3339),
+		Type:     serverType,
+		Version:  version,
+		Created:  time.Now().UTC().Format(time.RFC3339),
+		TargetOS: server.TargetOS(),
 	}
 
 	if err := config.Save(cfg); err != nil {

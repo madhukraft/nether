@@ -21,6 +21,7 @@ type Config struct {
 	Type     string         `toml:"type"`
 	Version  string         `toml:"version"`
 	Created  string         `toml:"created"`
+	TargetOS string         `toml:"target_os,omitempty"`
 	Mods     ModsConfig     `toml:"mods"`
 	Modpacks ModpackConfig  `toml:"modpacks"`
 }

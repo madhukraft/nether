@@ -13,12 +13,13 @@ func WriteEula() error {
 }
 
 func WriteConfig(serverType, version string) error {
-    content := fmt.Sprintf(`# Nether server config
+	content := fmt.Sprintf(`# Nether server config
 type = "%s"
 version = "%s"
 created = "%s"
-`, serverType, version, time.Now().Format(time.RFC3339))
-    return os.WriteFile("nether.toml", []byte(content), 0644)
+target_os = "%s"
+`, serverType, version, time.Now().Format(time.RFC3339), targetOS)
+	return os.WriteFile("nether.toml", []byte(content), 0644)
 }
 
 var DefaultJVMFlags = []string{

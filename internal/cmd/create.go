@@ -20,6 +20,7 @@ var portFlag int
 var dirFlag string
 var javaFlag int
 var targetOSFlag string
+var targetArchFlag string
 
 func promptEula(in *bufio.Reader, out io.Writer) (bool, error) {
 	fmt.Fprint(out, "Do you accept the Minecraft EULA (https://aka.ms/MinecraftEULA)? [y/N]: ")
@@ -156,6 +157,11 @@ var createCmd = &cobra.Command{
 	Use:   "create",
 	Short: "Create a new Minecraft server in the current directory",
 	Run: func(cmd *cobra.Command, args []string) {
+		if !server.SetTarget(targetOSFlag, targetArchFlag) {
+			fmt.Fprintf(os.Stderr, "error: invalid target OS %q (use linux, macos, or windows)\n", targetOSFlag)
+			os.Exit(1)
+		}
+
 		reader := bufio.NewReader(os.Stdin)
 
 		if !cmd.Flags().Changed("type") {
@@ -260,8 +266,6 @@ var createCmd = &cobra.Command{
 			fmt.Println("error: a nether server already exists in this directory")
 			os.Exit(1)
 		}
-
-		server.SetTarget(targetOSFlag, "")
 
 		javaVer := server.GetJavaVersionForMinecraft(serverVersion)
 		if javaFlag != 0 {
@@ -370,5 +374,6 @@ func init() {
 	createCmd.Flags().StringVar(&dirFlag, "dir", "", "Directory to create the server in (use '.' for current directory)")
 	createCmd.Flags().IntVar(&javaFlag, "java", 0, "Java major version (auto-detected if not set)")
 	createCmd.Flags().StringVar(&targetOSFlag, "os", "", "Target OS for Java and scripts (linux, macos, windows)")
+	createCmd.Flags().StringVar(&targetArchFlag, "arch", "", "Target architecture (amd64, arm64; defaults to host)")
 	rootCmd.AddCommand(createCmd)
 }

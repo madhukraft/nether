@@ -10,16 +10,27 @@ import (
 var targetOS = runtime.GOOS
 var targetArch = runtime.GOARCH
 
-func SetTarget(os, arch string) {
+func SetTarget(os, arch string) bool {
 	if os != "" {
-		targetOS = os
-		if targetOS == "macos" {
-			targetOS = "darwin"
+		normalized := os
+		if normalized == "macos" {
+			normalized = "darwin"
+		}
+		switch normalized {
+		case "darwin", "linux", "windows":
+			targetOS = normalized
+		default:
+			return false
 		}
 	}
 	if arch != "" {
 		targetArch = arch
 	}
+	return true
+}
+
+func TargetOS() string {
+	return targetOS
 }
 
 func bundledJavaDir() string {
@@ -33,22 +44,14 @@ func bundledJavaPath() string {
 	if targetOS == "windows" {
 		return filepath.Join("java", "bin", "java.exe")
 	}
-	dir := bundledJavaDir()
-	if dir == "java" {
-		return filepath.Join("java", "bin", "java")
-	}
-	return filepath.Join(dir, "bin", "java")
+	return filepath.Join(bundledJavaDir(), "bin", "java")
 }
 
 func bundledJavaRef() string {
 	if targetOS == "windows" {
 		return filepath.Join("java", "bin", "java.exe")
 	}
-	dir := bundledJavaDir()
-	if dir == "java" {
-		return "./" + filepath.Join("java", "bin", "java")
-	}
-	return "./" + filepath.Join(dir, "bin", "java")
+	return "./" + filepath.Join(bundledJavaDir(), "bin", "java")
 }
 
 func bundledJavaHome() string {
@@ -97,12 +100,21 @@ func patchScriptJava(path string, mode os.FileMode) error {
 
 	content := string(data)
 
+	hadCRLF := strings.Contains(content, "\r\n")
+	if hadCRLF {
+		content = strings.ReplaceAll(content, "\r\n", "\n")
+	}
+
 	content = strings.Replace(content, "exec java", "exec "+javaRef, 1)
 	if strings.HasPrefix(content, "java ") {
 		content = strings.Replace(content, "java ", javaRef+" ", 1)
 	}
 	content = strings.ReplaceAll(content, "\njava ", "\n"+javaRef+" ")
 	content = strings.ReplaceAll(content, "\njava\t", "\n"+javaRef+"\t")
+
+	if hadCRLF {
+		content = strings.ReplaceAll(content, "\n", "\r\n")
+	}
 
 	return os.WriteFile(path, []byte(content), mode)
 }
