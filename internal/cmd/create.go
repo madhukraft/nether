@@ -22,6 +22,7 @@ var dirFlag string
 var javaFlag int
 var targetOSFlag string
 var targetArchFlag string
+var agreeEULA bool
 
 func promptEula(in *bufio.Reader, out io.Writer) (bool, error) {
 	return ui.Confirm(in, out, "Accept the Minecraft EULA (https://aka.ms/MinecraftEULA)?")
@@ -153,10 +154,14 @@ var createCmd = &cobra.Command{
 			serverVersion = v
 		}
 
-		accepted, err := promptEula(reader, os.Stdout)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "error reading input: %v\n", err)
-			os.Exit(1)
+		accepted := agreeEULA
+		if !accepted {
+			var err error
+			accepted, err = promptEula(reader, os.Stdout)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "error reading input: %v\n", err)
+				os.Exit(1)
+			}
 		}
 		if !accepted {
 			fmt.Println("EULA not accepted. Aborting.")
@@ -346,5 +351,6 @@ func init() {
 	createCmd.Flags().IntVar(&javaFlag, "java", 0, "Java major version (auto-detected if not set)")
 	createCmd.Flags().StringVar(&targetOSFlag, "os", "", "Target OS for Java and scripts (linux, macos, windows)")
 	createCmd.Flags().StringVar(&targetArchFlag, "arch", "", "Target architecture (amd64, arm64; defaults to host)")
+	createCmd.Flags().BoolVar(&agreeEULA, "agree-to-eula", false, "Agree to the Minecraft EULA automatically")
 	rootCmd.AddCommand(createCmd)
 }
