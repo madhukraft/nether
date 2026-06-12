@@ -48,13 +48,12 @@ var DefaultJVMFlags = []string{
 func WriteStartScript(minRAM, maxRAM string) error {
 	flagLine := strings.Join(DefaultJVMFlags, " ")
 
-	shContent := fmt.Sprintf("#!/usr/bin/env sh\n\n%s -Xms%s -Xmx%s %s -jar server.jar --nogui\n", bundledJavaRef(), minRAM, maxRAM, flagLine)
-	batContent := fmt.Sprintf("@echo off\r\n\r\njava\\bin\\java.exe -Xms%s -Xmx%s %s -jar server.jar --nogui\r\n", minRAM, maxRAM, flagLine)
-
-	if err := os.WriteFile("run.sh", []byte(shContent), 0755); err != nil {
-		return err
+	if targetOS == "windows" {
+		content := fmt.Sprintf("@echo off\r\njava\\bin\\java.exe -Xms%s -Xmx%s %s -jar server.jar --nogui\r\n", minRAM, maxRAM, flagLine)
+		return os.WriteFile("run.bat", []byte(content), 0644)
 	}
-	return os.WriteFile("run.bat", []byte(batContent), 0755)
+	content := fmt.Sprintf("#!/usr/bin/env sh\n\n%s -Xms%s -Xmx%s %s -jar server.jar --nogui\n", bundledJavaRef(), minRAM, maxRAM, flagLine)
+	return os.WriteFile("run.sh", []byte(content), 0755)
 }
 
 func WriteServerProperties(port int) error {

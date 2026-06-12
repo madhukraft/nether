@@ -53,7 +53,11 @@ func TestWriteServerProperties(t *testing.T) {
 	}
 }
 
-func TestWriteStartScript(t *testing.T) {
+func TestWriteStartScriptLinux(t *testing.T) {
+	origOS := targetOS
+	targetOS = "linux"
+	defer func() { targetOS = origOS }()
+
 	dir := t.TempDir()
 	orig, _ := os.Getwd()
 	if err := os.Chdir(dir); err != nil {
@@ -80,6 +84,27 @@ func TestWriteStartScript(t *testing.T) {
 		t.Errorf("run.sh should start with shebang, got: %q", shContent[:40])
 	}
 
+	if _, err := os.Stat("run.bat"); !os.IsNotExist(err) {
+		t.Errorf("run.bat should not exist on linux target")
+	}
+}
+
+func TestWriteStartScriptWindows(t *testing.T) {
+	origOS := targetOS
+	targetOS = "windows"
+	defer func() { targetOS = origOS }()
+
+	dir := t.TempDir()
+	orig, _ := os.Getwd()
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chdir(orig)
+
+	if err := WriteStartScript("1G", "2G"); err != nil {
+		t.Fatal(err)
+	}
+
 	batData, err := os.ReadFile("run.bat")
 	if err != nil {
 		t.Fatal(err)
@@ -93,6 +118,10 @@ func TestWriteStartScript(t *testing.T) {
 	}
 	if !strings.HasPrefix(batContent, "@echo off\r\n") {
 		t.Errorf("run.bat should start with @echo off CRLF, got: %q", batContent[:25])
+	}
+
+	if _, err := os.Stat("run.sh"); !os.IsNotExist(err) {
+		t.Errorf("run.sh should not exist on windows target")
 	}
 }
 
@@ -160,26 +189,41 @@ func TestWriteStartScriptUsesBundledJavaRef(t *testing.T) {
 	}
 	defer os.Chdir(orig)
 
-	if err := WriteStartScript("1G", "2G"); err != nil {
-		t.Fatal(err)
-	}
+	origOS := targetOS
 
-	shData, err := os.ReadFile("run.sh")
-	if err != nil {
-		t.Fatal(err)
-	}
+	t.Run("linux", func(t *testing.T) {
+		targetOS = "linux"
+		defer func() { targetOS = origOS }()
 
-	javaRef := filepath.ToSlash(bundledJavaRef())
-	if !strings.Contains(string(shData), javaRef) {
-		t.Errorf("run.sh should use bundledJavaRef %q, got: %s", javaRef, string(shData))
-	}
+		if err := WriteStartScript("1G", "2G"); err != nil {
+			t.Fatal(err)
+		}
 
-	batData, err := os.ReadFile("run.bat")
-	if err != nil {
-		t.Fatal(err)
-	}
-	expectedBatJava := `java\bin\java.exe`
-	if !strings.Contains(string(batData), expectedBatJava) {
-		t.Errorf("run.bat should use %q, got: %s", expectedBatJava, string(batData))
-	}
+		shData, err := os.ReadFile("run.sh")
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		javaRef := filepath.ToSlash(bundledJavaRef())
+		if !strings.Contains(string(shData), javaRef) {
+			t.Errorf("run.sh should use bundledJavaRef %q, got: %s", javaRef, string(shData))
+		}
+	})
+
+	t.Run("windows", func(t *testing.T) {
+		targetOS = "windows"
+
+		if err := WriteStartScript("1G", "2G"); err != nil {
+			t.Fatal(err)
+		}
+
+		batData, err := os.ReadFile("run.bat")
+		if err != nil {
+			t.Fatal(err)
+		}
+		expectedBatJava := `java\bin\java.exe`
+		if !strings.Contains(string(batData), expectedBatJava) {
+			t.Errorf("run.bat should use %q, got: %s", expectedBatJava, string(batData))
+		}
+	})
 }
