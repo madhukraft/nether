@@ -4,11 +4,11 @@ import (
 	"bufio"
 	"fmt"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/madhukraft/nether/internal/config"
 	"github.com/madhukraft/nether/internal/server"
+	"github.com/madhukraft/nether/internal/ui"
 )
 
 func ensureServerInitialized() *config.Config {
@@ -20,26 +20,19 @@ func ensureServerInitialized() *config.Config {
 	reader := bufio.NewReader(os.Stdin)
 	isServer := server.IsServerDirectory(".")
 
+	var msg string
 	if isServer {
-		fmt.Println("This looks like a Minecraft server but no nether.toml was found.")
-		fmt.Print("Initialize one? (y/N): ")
+		msg = "This looks like a server but no nether.toml found. Initialize one?"
 	} else {
-		fmt.Println("No Minecraft server detected in the current directory.")
-		fmt.Print("Run 'nether create' first, or are you sure this is a server directory? (y/N): ")
+		msg = "No server detected. Are you sure this is a server directory?"
 	}
 
-	response, err := reader.ReadString('\n')
+	ok, err := ui.Confirm(reader, os.Stdout, msg)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error reading input: %v\n", err)
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(1)
 	}
-
-	response = strings.TrimSpace(response)
-	if len(response) > 0 {
-		response = response[:1]
-	}
-
-	if response != "y" && response != "Y" {
+	if !ok {
 		os.Exit(0)
 	}
 

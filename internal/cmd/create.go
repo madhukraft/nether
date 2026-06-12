@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/madhukraft/nether/internal/server"
+	"github.com/madhukraft/nether/internal/ui"
 	"github.com/spf13/cobra"
 )
 
@@ -23,13 +24,7 @@ var targetOSFlag string
 var targetArchFlag string
 
 func promptEula(in *bufio.Reader, out io.Writer) (bool, error) {
-	fmt.Fprint(out, "Do you accept the Minecraft EULA (https://aka.ms/MinecraftEULA)? [y/N]: ")
-	response, err := in.ReadString('\n')
-	if err != nil {
-		return false, err
-	}
-	response = strings.TrimSpace(response)
-	return response == "y" || response == "Y", nil
+	return ui.Confirm(in, out, "Accept the Minecraft EULA (https://aka.ms/MinecraftEULA)?")
 }
 
 func parseRAM(input string) (string, error) {
@@ -71,8 +66,7 @@ func parseRAM(input string) (string, error) {
 
 func promptRAM(in *bufio.Reader, out io.Writer) (string, error) {
 	for {
-		fmt.Fprint(out, "Enter the amount of RAM to allocate (e.g. 2G or 2048M): ")
-		input, err := in.ReadString('\n')
+		input, err := ui.Input(in, out, "RAM to allocate (e.g. 2G or 2048M)", "")
 		if err != nil {
 			return "", err
 		}
@@ -86,8 +80,7 @@ func promptRAM(in *bufio.Reader, out io.Writer) (string, error) {
 
 func promptPort(in *bufio.Reader, out io.Writer) (int, error) {
 	for {
-		fmt.Fprint(out, "Server port (press Enter for 25565): ")
-		input, err := in.ReadString('\n')
+		input, err := ui.Input(in, out, "Server port (press Enter for 25565)", "25565")
 		if err != nil {
 			return 0, err
 		}
@@ -110,12 +103,10 @@ func promptPort(in *bufio.Reader, out io.Writer) (int, error) {
 
 func promptVersion(in *bufio.Reader, out io.Writer, serverType string) (string, error) {
 	for {
-		fmt.Fprint(out, "Minecraft version (e.g. 1.21.1): ")
-		input, err := in.ReadString('\n')
+		input, err := ui.Input(in, out, "Minecraft version (e.g. 1.21.1)", "")
 		if err != nil {
 			return "", err
 		}
-		input = strings.TrimSpace(input)
 		if input == "" {
 			fmt.Fprintln(out, "Version cannot be empty.")
 			continue
@@ -130,27 +121,7 @@ func promptVersion(in *bufio.Reader, out io.Writer, serverType string) (string, 
 
 func promptServerType(in *bufio.Reader, out io.Writer) (string, error) {
 	types := []string{"paper", "vanilla", "fabric", "neoforge", "forge"}
-	for {
-		fmt.Fprintln(out, "Select server type:")
-		for i, t := range types {
-			fmt.Fprintf(out, "  %d) %s\n", i+1, t)
-		}
-		fmt.Fprint(out, "Enter number [1]: ")
-		input, err := in.ReadString('\n')
-		if err != nil {
-			return "", err
-		}
-		input = strings.TrimSpace(input)
-		if input == "" {
-			return "paper", nil
-		}
-		n, err := strconv.Atoi(input)
-		if err != nil || n < 1 || n > len(types) {
-			fmt.Fprintf(out, "error: enter a number between 1 and %d.\n", len(types))
-			continue
-		}
-		return types[n-1], nil
-	}
+	return ui.Select(in, out, "Select server type:", types)
 }
 
 var createCmd = &cobra.Command{

@@ -16,10 +16,11 @@ func TestPromptEula(t *testing.T) {
 		{"Accept lowercase y", "y\n", true},
 		{"Accept uppercase Y", "Y\n", true},
 		{"Accept lowercase y with space", "y \n", true},
+		{"Accept yes", "yes\n", true},
 		{"Reject lowercase n", "n\n", false},
 		{"Reject uppercase N", "N\n", false},
 		{"Reject empty input", "\n", false},
-		{"Reject other text", "yes\n", false},
+		{"Reject other text", "other\n", false},
 	}
 
 	for _, tt := range tests {
@@ -33,7 +34,7 @@ func TestPromptEula(t *testing.T) {
 			if accepted != tt.expected {
 				t.Errorf("expected %v, got %v", tt.expected, accepted)
 			}
-			expectedPrompt := "Do you accept the Minecraft EULA (https://aka.ms/MinecraftEULA)? [y/N]: "
+			expectedPrompt := "Accept the Minecraft EULA (https://aka.ms/MinecraftEULA)? [y/N]: "
 			if out.String() != expectedPrompt {
 				t.Errorf("expected prompt %q, got %q", expectedPrompt, out.String())
 			}
