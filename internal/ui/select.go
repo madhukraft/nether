@@ -68,22 +68,15 @@ func selectInteractive(w io.Writer, fd int, title string, options []string) (str
 	defer term.Restore(fd, oldState)
 
 	selected := 0
-	lineCount := len(options) + 2
 
 	// Initial render
-	fmt.Fprintf(w, "%s\n", Bold(title))
-	for i, opt := range options {
-		if i == selected {
-			fmt.Fprintf(w, "  \033[7m %s \033[0m\n", opt)
-		} else {
-			fmt.Fprintf(w, "    %s\n", opt)
-		}
-	}
+	// \r\n is required in raw mode since ONLCR is disabled
+	writeList(w, title, options, selected)
 
 	for {
 		k, err := readKey(fd)
 		if err != nil {
-			clearLines(w, lineCount)
+			fmt.Fprint(w, "\r\n")
 			return "", err
 		}
 
@@ -91,40 +84,46 @@ func selectInteractive(w io.Writer, fd int, title string, options []string) (str
 		case keyUp:
 			if selected > 0 {
 				selected--
+				moveUp(w, len(options)+2)
+				writeList(w, title, options, selected)
 			}
-			redrawSelect(w, title, options, selected, lineCount)
 		case keyDown:
 			if selected < len(options)-1 {
 				selected++
+				moveUp(w, len(options)+2)
+				writeList(w, title, options, selected)
 			}
-			redrawSelect(w, title, options, selected, lineCount)
 		case keyEnter:
-			clearLines(w, lineCount)
-			fmt.Fprintf(w, "%s %s\n", Bold(title), Cyan(options[selected]))
+			moveUp(w, len(options)+2)
+			clearToEnd(w)
+			fmt.Fprintf(w, "%s %s\r\n", Bold(title), Cyan(options[selected]))
 			return options[selected], nil
 		case keyCtrlC:
-			clearLines(w, lineCount)
+			moveUp(w, len(options)+2)
+			clearToEnd(w)
 			return "", fmt.Errorf("cancelled")
 		}
 	}
 }
 
-func clearLines(w io.Writer, n int) {
-	fmt.Fprint(w, "\r")
-	for i := 0; i < n; i++ {
-		fmt.Fprint(w, "\033[K\033[A")
+func moveUp(w io.Writer, n int) {
+	if n > 0 {
+		fmt.Fprintf(w, "\033[%dA", n)
 	}
-	fmt.Fprint(w, "\r\033[K")
 }
 
-func redrawSelect(w io.Writer, title string, options []string, selected, lineCount int) {
-	clearLines(w, lineCount)
-	fmt.Fprintf(w, "%s\n", Bold(title))
+func clearToEnd(w io.Writer) {
+	// Clear from cursor to bottom of screen
+	fmt.Fprint(w, "\033[J")
+}
+
+func writeList(w io.Writer, title string, options []string, selected int) {
+	fmt.Fprintf(w, "%s\r\n", Bold(title))
 	for i, opt := range options {
 		if i == selected {
-			fmt.Fprintf(w, "  \033[7m %s \033[0m\n", opt)
+			fmt.Fprintf(w, "\033[36m  > %s\033[0m\r\n", opt)
 		} else {
-			fmt.Fprintf(w, "    %s\n", opt)
+			fmt.Fprintf(w, "    %s\r\n", opt)
 		}
 	}
 }
@@ -136,9 +135,9 @@ func selectFallback(r io.Reader, w io.Writer, title string, options []string) (s
 	}
 
 	for {
-		fmt.Fprintf(w, "%s\n", title)
+		fmt.Fprintf(w, "%s\r\n", title)
 		for i, opt := range options {
-			fmt.Fprintf(w, "  %d) %s\n", i+1, opt)
+			fmt.Fprintf(w, "  %d) %s\r\n", i+1, opt)
 		}
 		fmt.Fprintf(w, "Enter number [1]: ")
 
@@ -154,7 +153,7 @@ func selectFallback(r io.Reader, w io.Writer, title string, options []string) (s
 
 		n, err := strconv.Atoi(input)
 		if err != nil || n < 1 || n > len(options) {
-			fmt.Fprintf(w, "Enter a number between 1 and %d.\n", len(options))
+			fmt.Fprintf(w, "Enter a number between 1 and %d.\r\n", len(options))
 			continue
 		}
 		return options[n-1], nil
