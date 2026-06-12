@@ -5,25 +5,35 @@ $BinPath = "$BinDir\nether.exe"
 switch ($env:PROCESSOR_ARCHITECTURE) {
     "AMD64" { $Arch = "amd64" }
     "ARM64" { $Arch = "arm64" }
-    default { Write-Error "Unsupported architecture"; exit 1 }
+    default {
+        Write-Error "Error: Unsupported architecture '$env:PROCESSOR_ARCHITECTURE'. Expected AMD64 or ARM64."
+        exit 1
+    }
 }
 
 $Url = "https://github.com/$Repo/releases/latest/download/nether-windows-$Arch.exe"
 
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
-$request = [System.Net.HttpWebRequest]::Create($Url)
-$request.AllowAutoRedirect = $false
+# Detect latest version from GitHub redirect
+$NewVer = "unknown"
 try {
+    $request = [System.Net.HttpWebRequest]::Create($Url)
+    $request.AllowAutoRedirect = $false
     $response = $request.GetResponse()
     $redirectUrl = $response.GetResponseHeader("Location")
     $response.Close()
+    if ($redirectUrl) {
+        $match = [regex]::Match($redirectUrl, '/download/([^/]+)/')
+        if ($match.Success) {
+            $NewVer = $match.Groups[1].Value
+        }
+    }
 } catch {
-    $redirectUrl = $_.Exception.Response.GetResponseHeader("Location")
+    Write-Warning "Could not detect latest version: $($_.Exception.Message)"
 }
-$NewVer = [regex]::Match($redirectUrl, '/download/([^/]+)/').Groups[1].Value
-if (-not $NewVer) { $NewVer = "unknown" }
 
+# Check existing installation
 if (Test-Path $BinPath) {
     $OldVer = & $BinPath -V 2>$null
     if ($LASTEXITCODE -ne 0 -or -not $OldVer) { $OldVer = $null }
@@ -41,17 +51,46 @@ if (Test-Path $BinPath) {
 
 $TmpFile = [System.IO.Path]::GetTempFileName()
 Write-Output "Downloading nether v$NewVer for windows/$Arch..."
-Invoke-WebRequest -Uri $Url -OutFile $TmpFile -UseBasicParsing
+Write-Output "  URL: $Url"
+
+try {
+    $webClient = New-Object System.Net.WebClient
+    $webClient.DownloadFile($Url, $TmpFile)
+    $webClient.Dispose()
+} catch {
+    Remove-Item -Force $TmpFile -ErrorAction SilentlyContinue
+    Write-Error "Error: Download failed. $($_.Exception.Message)"
+    exit 1
+}
+
+$fileInfo = Get-Item $TmpFile -ErrorAction SilentlyContinue
+if (-not $fileInfo -or $fileInfo.Length -eq 0) {
+    Remove-Item -Force $TmpFile -ErrorAction SilentlyContinue
+    Write-Error "Error: Downloaded file is empty. The release may not exist for windows/$Arch."
+    exit 1
+}
 
 New-Item -ItemType Directory -Force -Path $BinDir | Out-Null
 Move-Item -Force $TmpFile $BinPath
 
+try {
+    $test = & $BinPath -V 2>&1
+    if ($LASTEXITCODE -ne 0) { throw "exit code $LASTEXITCODE" }
+} catch {
+    Write-Warning "Warning: Installed binary failed to run. It may be incompatible with your system."
+    Write-Warning "  Error: $($_.Exception.Message)"
+}
+
+$pathUpdated = $false
 $Path = [Environment]::GetEnvironmentVariable("Path", "User")
 if ($Path -notlike "*$BinDir*") {
     [Environment]::SetEnvironmentVariable("Path", "$Path;$BinDir", "User")
+    $pathUpdated = $true
 }
 
 Write-Output "Installed v$NewVer to $BinPath"
-Write-Output "Added $BinDir to your user PATH."
-Write-Output "Restart your terminal or run: `$env:Path = [Environment]::GetEnvironmentVariable('Path', 'User')"
-Write-Output "Then run 'nether create' to get started."
+if ($pathUpdated) {
+    Write-Output "Added $BinDir to your user PATH."
+    Write-Output "Restart your terminal or run: `$env:Path = [Environment]::GetEnvironmentVariable('Path', 'User')"
+}
+Write-Output "Run 'nether create' to get started."
